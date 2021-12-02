@@ -16,10 +16,10 @@ get_wandb_root_path()
 # log merged ports info and centralities as artifacts
 
 #%% get data from artifacts
-name = "edge_list:latest"
-art_edge = get_one_file_from_artifact('edge_list:latest')
+art_edge = 
 
-df_edges = read_edge_list(art_edge.filepath)
+df_edges = pd.read_parquet(get_one_file_from_artifact('ports_features:latest').filepath)
+
 df_edges.dtypes   
 
 #%% Check for weird links

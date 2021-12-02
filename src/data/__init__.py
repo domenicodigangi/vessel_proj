@@ -25,9 +25,8 @@ def create_data_fold_structure(project_dir):
 def get_project_name():
     return "vessel-proj"
 
-def get_project_root() -> Path:
+def get_project_root():
     return Path(__file__).parent.parent.parent.parent.parent
-
 
 def get_data_path():
     proj_root = get_project_root() 
@@ -44,14 +43,19 @@ def get_wandb_root_path():
     return root_path
 
 def init_wandb_run(job_type=None):
-    return wandb.init(project=get_project_name(), dir=get_wandb_root_path(), job_type=job_type)
+
+    run = wandb.init(project=get_project_name(), dir=get_wandb_root_path(), job_type=job_type)
+
+    logger.info(f"Logging to wandb run called {run.name}")
+
+    return run 
 
 def get_artifacts_path():
     art_path = get_wandb_root_path() / "artifacts"
     art_path.mkdir(exist_ok=True)
     return art_path
 
-def get_file_from_artifact(name, run=None, type=None):
+def get_one_file_from_artifact(name, run=None, type=None):
 
     if run is not None:
         artifact = run.use_artifact(name, type=type)
@@ -60,6 +64,7 @@ def get_file_from_artifact(name, run=None, type=None):
         fullname = f"{get_project_name()}/{name}"
         artifact = api.artifact(fullname, type=type)
         
+
     d = {"artifact": artifact}
         
     try:
@@ -69,8 +74,9 @@ def get_file_from_artifact(name, run=None, type=None):
         pass
 
     try:
-        file_path = artifact_dir / Path(artifact.file()).name
-        d["file_path"] = file_path        
+        manifest = artifact._load_manifest()
+        filepath = artifact_dir / list(manifest.entries)[0]
+        d["filepath"] = filepath        
     except:
         pass
 
@@ -124,8 +130,8 @@ def shaper_slow(input_file, output_file, nrows=None):
 
     return df_edges
 
-def read_edge_list(file_path):
-    df_edges = pd.read_csv(file_path)
+def read_edge_list(filepath):
+    df_edges = pd.read_csv(filepath)
     df_edges["start_date"] = pd.to_datetime(df_edges["start_date"])
     df_edges["end_date"] = pd.to_datetime(df_edges["end_date"])
     df_edges["duration"] = pd.to_timedelta(df_edges["duration"])
@@ -141,4 +147,14 @@ def read_edge_list(file_path):
     df_edges["uid"] =df_edges["uid"].astype('category')
     return df_edges
 
-
+def save_parquet_and_wandb_log(run, df, name, fold):
+    
+    # save locally and log it as local artifact, visible in wandb
+    filepath = get_data_path() / fold / f"{name}.parquet"
+    logger.info(f"Saving dataframe {name} in {filepath}")
+    df.to_parquet(filepath)
+    # save locally and log it as (local) artifact
+    artifact = wandb.Artifact(name, type='dataset')
+    artifact.add_reference('file:///' + str(filepath))
+    run.log_artifact(artifact)
+    logger.info(f"Logged it as artifact")
