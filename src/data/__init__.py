@@ -1,8 +1,12 @@
 from pathlib import Path
-import logging 
+import logging
 import pandas as pd
 from tqdm import tqdm 
 import logging
+import wandb
+from pathlib import Path
+from types import SimpleNamespace
+
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -18,7 +22,8 @@ def create_data_fold_structure(project_dir):
     Path.mkdir(project_dir / "data" / "external", exist_ok = True)
 
 
-
+def get_project_name():
+    return "vessel-proj"
 
 def get_project_root() -> Path:
     return Path(__file__).parent.parent.parent.parent.parent
@@ -32,7 +37,46 @@ def get_data_path():
 
     return data_path
 
+def get_wandb_root_path():
+    root_path = get_data_path() / "root_wandb"
+    logging.warning(f"using hardcoded path for data in barbera: {root_path}" )
 
+    return root_path
+
+def init_wandb_run(job_type=None):
+    return wandb.init(project=get_project_name(), dir=get_wandb_root_path(), job_type=job_type)
+
+def get_artifacts_path():
+    art_path = get_wandb_root_path() / "artifacts"
+    art_path.mkdir(exist_ok=True)
+    return art_path
+
+def get_file_from_artifact(name, run=None, type=None):
+
+    if run is not None:
+        artifact = run.use_artifact(name, type=type)
+    else:
+        api = wandb.Api()
+        fullname = f"{get_project_name()}/{name}"
+        artifact = api.artifact(fullname, type=type)
+        
+    d = {"artifact": artifact}
+        
+    try:
+        artifact_dir = artifact.download(root=get_wandb_root_path() / artifact._default_root())
+        d["artifact_dir"] = artifact_dir
+    except:
+        pass
+
+    try:
+        file_path = artifact_dir / Path(artifact.file()).name
+        d["file_path"] = file_path        
+    except:
+        pass
+
+    out = SimpleNamespace(**d)
+
+    return out
 
 def shaper_slow(input_file, output_file, nrows=None):
     """ Convert df of time stamped vessel visits to ports to links, using a for loop over the groups of visits for each vessel
@@ -78,6 +122,23 @@ def shaper_slow(input_file, output_file, nrows=None):
 
     df_edges.to_csv(output_file)
 
+    return df_edges
+
+def read_edge_list(file_path):
+    df_edges = pd.read_csv(file_path)
+    df_edges["start_date"] = pd.to_datetime(df_edges["start_date"])
+    df_edges["end_date"] = pd.to_datetime(df_edges["end_date"])
+    df_edges["duration"] = pd.to_timedelta(df_edges["duration"])
+    df_edges["duration_days"] = df_edges["duration"].dt.total_seconds()/(60*60*24)
+    df_edges["vesseltype"] = df_edges["vesseltype"].astype('category')
+    df_edges["start_port"] = df_edges["start_port"].astype('category')
+    df_edges["end_port"] =df_edges["end_port"].astype(df_edges["start_port"].dtype)
+    df_edges["start_port_name"] =df_edges["start_port_name"].astype('category')
+    df_edges["end_port_name"] =df_edges["end_port_name"].astype(df_edges["start_port_name"].dtype)
+    df_edges["start_region"] =df_edges["start_region"].astype('category')
+    df_edges["end_region"] =df_edges["end_region"].astype(df_edges["end_region"].dtype)
+    df_edges["mmsi"] =df_edges["mmsi"].astype('category')
+    df_edges["uid"] =df_edges["uid"].astype('category')
     return df_edges
 
 
