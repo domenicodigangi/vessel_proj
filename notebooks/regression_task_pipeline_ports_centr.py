@@ -1,197 +1,121 @@
 #%%
-from networkx.classes.function import density
-from networkx.classes.graphviews import generic_graph_view
 import pandas as pd
 import numpy as np
-import networkx as nx
 from matplotlib import pyplot as plt
-from wandb.util import artifact_to_json
+import logging
+import time
+from sklearn.model_selection import train_test_split
+from sklearn import preprocessing
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.svm import SVR
+from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import Ridge
+import sklearn
 
-from src.data import get_one_file_from_artifact, read_edge_list, get_wandb_root_path
+from sklearn.model_selection import train_test_split
+from sklearn.utils.class_weight import compute_class_weight
 
-get_wandb_root_path()
-#TO DO:
-# log df_edges_aggr as artifact
-# log cleaned ports info as artifact
-# log merged ports info and centralities as artifacts
+from sklearn.exceptions import ConvergenceWarning
+import warnings
+warnings.filterwarnings("ignore", category=ConvergenceWarning)
+from src.data import get_one_file_from_artifact, get_project_name, get_wandb_root_path
+import wandb
+from sklearn.inspection import permutation_importance
 
-#%% get data from artifacts
-art_edge = 
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import make_scorer
+from sklearn.model_selection import cross_val_score
+from xgboost import XGBRegressor
+logger = logging.getLogger(__file__)
+    
+#%% load data from artifacts
 
-df_edges = pd.read_parquet(get_one_file_from_artifact('ports_features:latest').filepath)
+all_models = [RandomForestRegressor(random_state=0), XGBRegressor(), SVR(), LinearRegression(), Ridge()]
 
-df_edges.dtypes   
+all_y_names = ["page_rank_w_trips", "page_rank_w_log_trips", "page_rank_bin", "centr_eig_bin"]
 
-#%% Check for weird links
-ind_no_dur = df_edges["duration_days"]==0
-print(f"found {ind_no_dur.sum() } links with zero duration" )
+yname = "page_rank_w_log_trips"
+model = RandomForestRegressor(random_state=0)
 
-ind_same_ports = df_edges["start_port"] == df_edges["end_port"]
-print(f"found {ind_same_ports.sum() } links with zero duration") 
+def main(model, yname):
+    model_name = type(model).__name__
+    
+    cv_n_folds = 5
 
-# drop them
-ind_to_drop = ind_no_dur | ind_same_ports
-print(f"dropping  {ind_to_drop.sum() } links ") 
-df_edges = df_edges[~ind_to_drop]
+    with wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="regression_task", reinit=True) as run:
 
-#%% simple description numerical
-df_edges.describe()
-#%% simple description categorical
-df_edges.describe(include={"category"})
+        wandb.log({"model": model_name, "var_predicted": yname, "cv_n_folds": cv_n_folds})
+        
+        df_ports = pd.read_parquet(get_one_file_from_artifact('ports_features:latest').filepath)
 
-#%% group trips
-# count number of connections between each pairs of ports, avg duration, number of distinct vessels and types of vessels
-
-count_unique =  lambda x: np.unique(x).shape[0]
-df_edges_grouped = df_edges.groupby(["start_port", "end_port"], observed=True).agg( duration_avg_days = ("duration_days", np.mean), trips_count =  ("uid", count_unique), vesseltype_count = ("vesseltype", count_unique))
-
-df_edges_grouped.reset_index(inplace=True)
-# df_edges_grouped.drop(columns="index", inplace=True)
-
-df_edges_grouped.plot.scatter("vesseltype_count", "trips_count")
-df_edges_grouped.hist(log=True, density=True)
-
-
-#%% Create graph 
-G_0 = nx.convert_matrix.from_pandas_edgelist(df_edges_grouped, 'start_port', 'end_port',  edge_attr=["trips_count", "vesseltype_count", "duration_avg_days"], create_using=nx.DiGraph())
-#%% Drop smallest component
-
-subgraphs_conn = [G_0.subgraph(c).copy() for c in nx.connected_components(G_0.to_undirected())]
-
-n_nodes_conn = [S.number_of_nodes() for S in subgraphs_conn]
-
-print(f"Nodes in conn comp {n_nodes_conn}")
-G = subgraphs_conn[0]
-
-#%% Compute centralities
-
-df_centr = pd.DataFrame.from_dict(nx.eigenvector_centrality_numpy(G), orient="index", columns = ['centr_eig_bin'])
-
-df_centr["centr_eig_w"] = nx.eigenvector_centrality_numpy(G, weight="trips_count")
-df_centr["page_rank_bin"] = nx.algorithms.link_analysis.pagerank_alg.pagerank(G)
-df_centr["page_rank_w"] = nx.algorithms.link_analysis.pagerank_alg.pagerank(G, weight="trips_count")
-
-df_centr.plot.scatter("centr_eig_bin", "centr_eig_w")
-
-(df_centr["centr_eig_w"] == df_centr["page_rank_bin"]).mean()
-(df_centr["page_rank_w"] == df_centr["page_rank_bin"]).mean()
-
-# df_reg = pd.concat((df_centr, df_ports), axis=1)
+        df_centr = pd.read_parquet(get_one_file_from_artifact('centr_ports:latest').filepath)
 
 
-#%%
+        df_merge = df_centr.reset_index().merge(df_ports, how="left", left_on="index", right_on="INDEX_NO")
 
-if False:
-    #log grouped data as artifact
-    pass
+        X = df_merge[df_ports.columns].drop(columns=["PORT_NAME", "Unnamed: 0", "REGION_NO"])
 
-
-# %% Drop some ports information
-
-art_ports_info = get_one_file_from_artifact('ports_info_csv:latest')
-df_ports = pd.read_csv(art_ports_info.filepath)
-
-
-descr_num = df_ports.describe().transpose()
-descr_obj = df_ports.describe(include = ["object"]).transpose()
-
-
-col_to_drop = ["CHART", "geometry", "LAT_DEG", "LAT_MIN", "LONG_DEG", "LONG_MIN", "LAT_HEMI", "LONG_HEMI"]
-
-col_single_val = df_ports.columns[df_ports.apply(lambda x: pd.unique(x).shape[0]) == 1].values.tolist()
-print(col_single_val)
-
-col_to_drop.extend(col_single_val)
-
-df_ports = df_ports.drop(columns=col_to_drop)
-
-df_ports["INDEX_NO"] = df_ports["INDEX_NO"].astype('int')
-df_ports = df_ports.set_index("INDEX_NO")
-
-#%% change types
-# df_ports.astype({"PORT_NAME": df_edges["start_port_name"].dtype})
-
-# %% EDA ports info
-for col in df_ports.columns:
-    if col not in ["PORT_NAME", "COUNTRY"]:
-        plt.figure()
-        df_ports[col].hist()
-        plt.title(col)
-        plt.show()
-# %%
-# TO DO:
-
-# continuare a rimuovere colonne non interessanti
-# cosa sono le COMM ?  e.g. COMM_RADIO
-# add country dgp
-# chiarire perchè le centralità pesate sono tutte uguali
-# look at correlations
-# decidere come trattare i missing
-
-y_name = "centr_eig_bin"
-df_reg = df_centr[y_name].reset_index().merge(df_ports.reset_index(), left_on="index", right_on="INDEX_NO")
-
-df_reg = df_reg.astype({"COUNTRY": "category"})
-
-df_reg.info()
-
-
+        feature_names = [col for col in X.columns]
 
         
 
-cols_to_drop=["index", "PORT_NAME", "INDEX_NO", "Unnamed: 0", "REGION_NO"]
-from sklearn import preprocessing
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from sklearn.model_selection import train_test_split
-import time
+        feat_names_non_cat = ["TIDE_RANGE", "LATITUDE", "LONGITUDE"]
+        feat_names = list(X.columns)
+        feat_names_cat = [f for f in feat_names if f not in feat_names_non_cat]
 
-le = preprocessing.LabelEncoder()
-X = df_reg.drop(columns=cols_to_drop + [y_name])
-feature_names = [col for col in X.columns]
-for col in X.columns:
-    X[col] = le.fit_transform(X[col])
+        wandb.log({"feat_names_non_cat": feat_names_non_cat, "feat_names_cat": feat_names_cat})
 
-y = df_reg[y_name]#le.fit_transform(df_reg[y_name])
-X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42)
-forest = RandomForestRegressor(random_state=0)
-forest.fit(X_train, y_train)
+        le = preprocessing.LabelEncoder()
+        for col in X.columns:
+            if col in feat_names_cat:
+                X[col] = le.fit_transform(X[col])
 
-# %% Feature importance based on mean decrease in impurity
+        all_Y = df_merge[df_centr.columns]
 
-start_time = time.time()
-importances = forest.feature_importances_
-std = np.std([tree.feature_importances_ for tree in forest.estimators_], axis=0)
-elapsed_time = time.time() - start_time
+        y = all_Y[yname]
+        X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42)
 
-print(f"Elapsed time to compute the importances: {elapsed_time:.3f} seconds")
+        model.fit(X_train, y_train)
+        wandb.log({"score_train_set": model.score(X_train, y_train)})
+        wandb.log({"score_test_set": model.score(X_test, y_test)})
 
-# %%
+        scoring = {'cv_r2': make_scorer(sklearn.metrics.r2_score), 'cv_neg_mean_absolute_error': 'neg_mean_absolute_error', 'cv_neg_mean_squared_error': 'neg_mean_squared_error'}
 
-forest_importances = pd.Series(importances, index=feature_names)
+        start_time = time.time()
+        score_res = sklearn.model_selection.cross_validate(model, X_train, y_train, cv=cv_n_folds, scoring=scoring, n_jobs=10)
+        wandb.log({"time_cv_scoring": time.time() - start_time})
 
-fig, ax = plt.subplots()
-forest_importances.plot.bar(yerr=std, ax=ax)
-ax.set_title("Feature importances using MDI")
-ax.set_ylabel("Mean decrease in impurity")
-fig.tight_layout()
+        wandb.log(score_res)
 
-# %% Feature importance based on feature permutation
-from sklearn.inspection import permutation_importance
-import pickle
+        wandb.sklearn.plot_regressor(model, X_train, X_test, y_train, y_test, model_name=model_name)
+        # %% Feature importance based on mean decrease in impurity
 
-start_time = time.time()
-result = permutation_importance(
-    forest, X_test, y_test, n_repeats=10, random_state=42, n_jobs=20
-)
-elapsed_time = time.time() - start_time
-print(f"Elapsed time to compute the importances: {elapsed_time:.3f} seconds")
+        
+        start_time = time.time()
+        result = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42, n_jobs=20)
+        wandb.log({"time_permutation_importance": time.time() - start_time})
+        
+        feat_importances = pd.Series(result.importances_mean, index=feature_names)
+        wandb.log({"permutation_feat_importances": feat_importances.to_frame().to_dict()})
 
-forest_importances = pd.Series(result.importances_mean, index=feature_names)
+        fig, ax = plt.subplots()
+        feat_importances.plot.bar(yerr=result.importances_std, ax=ax)
+        ax.set_title("Feature importances using permutation on full model")
+        ax.set_ylabel("Mean accuracy decrease")
+        ax.set_xticklabels(feat_names)
+        fig.tight_layout()
 
-# %%
-fig, ax = plt.subplots()
-forest_importances.plot.bar(yerr=result.importances_std, ax=ax)
-ax.set_title("Feature importances using permutation on full model")
-ax.set_ylabel("Mean accuracy decrease")
-fig.tight_layout()
-plt.show()
+        wandb.log({"permutation_importances_plot": fig})
+
+#%%
+
+if __name__ == "__main__":
+    for model in all_models:
+        for yname in all_y_names:
+            try:
+                logger.info(f"Running {model}, y = {yname}")
+                main(model, yname)
+                logger.info(f"Finished {model}, y = {yname}")
+            except:
+                logger.error(f"Failed {model}, y = {yname}")
+                

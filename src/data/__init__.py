@@ -42,13 +42,6 @@ def get_wandb_root_path():
 
     return root_path
 
-def init_wandb_run(job_type=None):
-
-    run = wandb.init(project=get_project_name(), dir=get_wandb_root_path(), job_type=job_type)
-
-    logger.info(f"Logging to wandb run called {run.name}")
-
-    return run 
 
 def get_artifacts_path():
     art_path = get_wandb_root_path() / "artifacts"

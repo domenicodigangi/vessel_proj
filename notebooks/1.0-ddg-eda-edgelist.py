@@ -10,10 +10,7 @@ from wandb.util import artifact_to_json
 from src.data import get_one_file_from_artifact, read_edge_list, get_wandb_root_path
 
 get_wandb_root_path()
-#TO DO:
-# log df_edges_aggr as artifact
-# log cleaned ports info as artifact
-# log merged ports info and centralities as artifacts
+
 
 #%% get data from artifacts
 name = "edge_list:latest"

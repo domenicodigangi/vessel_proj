@@ -4,12 +4,12 @@ Start tracking data in wandb
 """
 import geopandas as gpd
 
-from src.data import init_wandb_run, get_data_path
+from src.data import  get_data_path, get_project_name, get_wandb_root_path
 
 import wandb
 
 if __name__ == '__main__':
-    run = init_wandb_run()
+    run = wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="dataset_creation", reinit=True)
 
     artifact = wandb.Artifact('all_raw_data', type='dataset')
     artifact.add_reference('file:///' + str(get_data_path() / "raw" ))

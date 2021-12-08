@@ -6,7 +6,7 @@ import numpy as np
 import networkx as nx
 from matplotlib import pyplot as plt
 
-from src.data import get_one_file_from_artifact, read_edge_list, get_wandb_root_path, init_wandb_run, get_data_path, save_parquet_and_wandb_log
+from src.data import get_one_file_from_artifact, read_edge_list, get_wandb_root_path, get_data_path, save_parquet_and_wandb_log, get_project_name
 
 
 # %%
@@ -123,7 +123,8 @@ if False:
 
 if __name__=="__main__":
 
-    run = init_wandb_run()
+    run = wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="data_preprocessing", reinit=True)
+
     save_parquet_and_wandb_log(run, df_centr, "centr_ports", "interim")
 
     save_parquet_and_wandb_log(run, df_ports, "ports_features", "interim")
