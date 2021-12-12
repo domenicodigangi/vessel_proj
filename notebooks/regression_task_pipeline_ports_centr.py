@@ -26,13 +26,15 @@ from sklearn.metrics import accuracy_score
 from sklearn.metrics import make_scorer
 from sklearn.model_selection import cross_val_score
 from xgboost import XGBRegressor
+import sage
+
 logger = logging.getLogger(__file__)
     
 #%% load data from artifacts
 
-all_models = [RandomForestRegressor(random_state=0), XGBRegressor(), SVR(), LinearRegression(), Ridge()]
+all_models = [RandomForestRegressor(random_state=0), XGBRegressor(),LinearRegression(), Ridge()]
 
-all_y_names = ["page_rank_w_trips", "page_rank_w_log_trips", "page_rank_bin", "centr_eig_bin"]
+all_y_names = ["page_rank_w_log_trips", "page_rank_bin"]
 
 yname = "page_rank_w_log_trips"
 model = RandomForestRegressor(random_state=0)
@@ -57,8 +59,6 @@ def main(model, yname):
 
         feature_names = [col for col in X.columns]
 
-        
-
         feat_names_non_cat = ["TIDE_RANGE", "LATITUDE", "LONGITUDE"]
         feat_names = list(X.columns)
         feat_names_cat = [f for f in feat_names if f not in feat_names_non_cat]
@@ -76,8 +76,12 @@ def main(model, yname):
         X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42)
 
         model.fit(X_train, y_train)
-        wandb.log({"score_train_set": model.score(X_train, y_train)})
-        wandb.log({"score_test_set": model.score(X_test, y_test)})
+        wandb.log({
+            "train_set_size": X_train.shape[0],
+            "test_set_size": X_test.shape[0],
+            "score_train_set": model.score(X_train, y_train), 
+            "score_test_set": model.score(X_test, y_test),
+            })
 
         scoring = {'cv_r2': make_scorer(sklearn.metrics.r2_score), 'cv_neg_mean_absolute_error': 'neg_mean_absolute_error', 'cv_neg_mean_squared_error': 'neg_mean_squared_error'}
 
@@ -88,12 +92,10 @@ def main(model, yname):
         wandb.log(score_res)
 
         wandb.sklearn.plot_regressor(model, X_train, X_test, y_train, y_test, model_name=model_name)
-        # %% Feature importance based on mean decrease in impurity
 
-        
+        # %% Permutation feature importance from sklearn
         start_time = time.time()
         result = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42, n_jobs=20)
-        wandb.log({"time_permutation_importance": time.time() - start_time})
         
         feat_importances = pd.Series(result.importances_mean, index=feature_names)
         wandb.log({"permutation_feat_importances": feat_importances.to_frame().to_dict()})
@@ -104,8 +106,33 @@ def main(model, yname):
         ax.set_ylabel("Mean accuracy decrease")
         ax.set_xticklabels(feat_names)
         fig.tight_layout()
-
         wandb.log({"permutation_importances_plot": fig})
+
+        if True:
+            # experiment with sage, can be slow
+
+            max_feat_sage = 10
+
+            feature_names = X_train.columns[:max_feat_sage].values
+
+            model.fit(X_train.iloc[:, :max_feat_sage], y_train)
+            # Set up an imputer to handle missing features
+            imputer = sage.MarginalImputer(model, X_train.iloc[:, :max_feat_sage])
+
+            # Set up an estimator
+            estimator = sage.PermutationEstimator(imputer, 'mse')
+
+            # Calculate SAGE values
+            sage_values = estimator(X_test.iloc[:, :max_feat_sage].values, y_test.values)
+            fig = sage_values.plot(feature_names, return_fig=True)
+            
+            wandb.log({"sage_importances_plot": fig})
+
+            # Feature importance from SAGE
+            start_time = time.time()
+            wandb.log({"time_sage_feat_imp": time.time() - start_time})
+        
+
 
 #%%
 
@@ -119,3 +146,5 @@ if __name__ == "__main__":
             except:
                 logger.error(f"Failed {model}, y = {yname}")
                 
+
+
