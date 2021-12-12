@@ -28,24 +28,25 @@ from sklearn.metrics import make_scorer
 from sklearn.model_selection import cross_val_score
 from xgboost import XGBRegressor
 import sage
+import argparse
 
 logger = logging.getLogger(__file__)
     
 #%% load data from artifacts
 
-all_models = [RandomForestRegressor(random_state=0), LinearRegression(), Ridge()]
-
-all_y_names = ["page_rank_w_log_trips", "page_rank_bin","log_page_rank_w_log_trips", "log_page_rank_bin"]
 
 yname = "page_rank_w_log_trips"
 model = RandomForestRegressor(random_state=0)
+run_sage=False
+n_sage_perm =10000
+cv_n_folds = 5
 
-def main(model, yname):
-    model_name = type(model).__name__
+def main(model, yname, run_sage, n_sage_perm, cv_n_folds):
     
-    cv_n_folds = 5
 
     with wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="regression_task", reinit=True) as run:
+    
+        model_name = type(model).__name__
 
         wandb.log({"model": model_name, "var_predicted": yname, "cv_n_folds": cv_n_folds})
         
@@ -55,7 +56,7 @@ def main(model, yname):
 
         # add log of centralities to the list of centralities
         for c in df_centr.columns:
-            df_centr[f"log_{c}"] = np.log10(df_centr[c])
+            df_centr[f"log_{c}"] = np.log(df_centr[c].values)
 
         df_centr.fillna(df_centr.min(skipna=True), inplace=True)
             
@@ -128,11 +129,12 @@ def main(model, yname):
         fig.tight_layout()
         wandb.log({"permutation_importances_plot": fig})
 
-        if False:
+        if run_sage:
             # experiment with sage, can be slow
 
-            wandb.log({"sage_importances_flag": "Y"})
-            max_feat_sage = 10
+            wandb.log({"sage_importances_flag": "T"})
+            wandb.log({"n_sage_perm": n_sage_perm})
+            max_feat_sage = X_train.shape[1]
 
             feature_names = X_train.columns[:max_feat_sage].values
 
@@ -144,7 +146,7 @@ def main(model, yname):
             estimator = sage.PermutationEstimator(imputer, 'mse')
 
             # Calculate SAGE values
-            sage_values = estimator(X_test.iloc[:, :max_feat_sage].values, y_test.values)
+            sage_values = estimator(X_test.iloc[:, :max_feat_sage].values, y_test.values, verbose=True, n_permutations=n_sage_perm)
             fig = sage_values.plot(feature_names, return_fig=True)
             
             wandb.log({"sage_importances_plot": fig})
@@ -158,11 +160,28 @@ def main(model, yname):
 #%%
 
 if __name__ == "__main__":
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("run_sage", default=False,
+                        help="compute and log sage feat importance")
+    parser.add_argument("n_sage_perm", default=50000,
+                        help="Maximum number of permutations in sage. If null it goes on until convergence")
+    # parser.add_argument("cv_n_folds", default=5)
+    args = parser.parse_args()
+
+
+    all_models = [RandomForestRegressor(random_state=0), LinearRegression(), Ridge()]
+    all_y_names = ["page_rank_w_log_trips", "page_rank_bin","log_page_rank_w_log_trips", "log_page_rank_bin"]
+    
+    run_sage = args.run_sage
+    n_sage_perm = args.n_sage_perm
+    cv_n_folds = 5 #args.cv_n_folds
+
     for model in all_models:
         for yname in all_y_names:
             try:
                 logger.info(f"Running {model}, y = {yname}")
-                main(model, yname)
+                main(model, yname, run_sage, n_sage_perm, cv_n_folds)
                 logger.info(f"Finished {model}, y = {yname}")
             except:
                 logger.error(f"Failed {model}, y = {yname}")
