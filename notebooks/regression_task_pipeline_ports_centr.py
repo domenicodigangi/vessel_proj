@@ -11,6 +11,7 @@ from sklearn.svm import SVR
 from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import Ridge
 import sklearn
+from sklearn import metrics
 
 from sklearn.model_selection import train_test_split
 from sklearn.utils.class_weight import compute_class_weight
@@ -32,7 +33,7 @@ logger = logging.getLogger(__file__)
     
 #%% load data from artifacts
 
-all_models = [RandomForestRegressor(random_state=0), XGBRegressor(),LinearRegression(), Ridge()]
+all_models = [RandomForestRegressor(random_state=0), LinearRegression(), Ridge()]
 
 all_y_names = ["page_rank_w_log_trips", "page_rank_bin","log_page_rank_w_log_trips", "log_page_rank_bin"]
 
@@ -56,7 +57,8 @@ def main(model, yname):
         for c in df_centr.columns:
             df_centr[f"log_{c}"] = np.log10(df_centr[c])
 
-
+        df_centr.fillna(df_centr.min(skipna=True), inplace=True)
+            
         df_merge = df_centr.reset_index().merge(df_ports, how="left", left_on="index", right_on="INDEX_NO")
 
         X = df_merge[df_ports.columns].drop(columns=["PORT_NAME", "Unnamed: 0", "REGION_NO"])
@@ -80,24 +82,29 @@ def main(model, yname):
         y = all_Y[yname]
         X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42)
 
-        model.fit(X_train, y_train)
         wandb.log({
             "train_set_size": X_train.shape[0],
             "test_set_size": X_test.shape[0],
-            "r2_train_set": model.score(X_train, y_train), 
-            "r2_test_set": model.score(X_test, y_test),
-            "neg_mean_squared_log_error_train_set": model.score(X_train, y_train), 
-            "r2_test_set": model.score(X_test, y_test),
             })
 
-        scoring = {
-            'cv_r2': make_scorer(sklearn.metrics.r2_score),
-            'cv_neg_mean_absolute_error': 'neg_mean_absolute_error',
-            'cv_neg_mean_squared_error': 'neg_mean_squared_error',
-            'cv_neg_mean_squared_log_error': 'neg_mean_squared_log_error',
-            'cv_neg_mean_absolute_percentage_error': 'neg_mean_absolute_percentage_error'
+        model.fit(X_train, y_train)
+
+        y_pred_train = model.predict(X_train) 
+        y_pred_test = model.predict(X_test) 
+
+        score_funs = {
+            'r2': metrics.r2_score,
+            'neg_mean_absolute_error': metrics.mean_absolute_error,
+            'mean_squared_error': metrics.mean_squared_error,
+            'mean_squared_log_error': metrics.mean_squared_log_error,
+            'mean_absolute_percentage_error': metrics.mean_absolute_percentage_error
             }
 
+        wandb.log({f"test_set_{k}": f(y_test, y_pred_test) for k, f in score_funs.items()})
+        wandb.log({f"train_set_{k}": f(y_train, y_pred_train) for k, f in score_funs.items()})
+
+        # run cross val on train set
+        scoring = {k: make_scorer(f) for k,f in score_funs.items()}
         start_time = time.time()
         score_res = sklearn.model_selection.cross_validate(model, X_train, y_train, cv=cv_n_folds, scoring=scoring, n_jobs=10)
         wandb.log({"time_cv_scoring": time.time() - start_time})
@@ -109,7 +116,7 @@ def main(model, yname):
         # %% Permutation feature importance from sklearn
         start_time = time.time()
         result = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42, n_jobs=20)
-        
+
         feat_importances = pd.Series(result.importances_mean, index=feature_names)
         wandb.log({"permutation_feat_importances": feat_importances.to_frame().to_dict()})
 
@@ -121,7 +128,7 @@ def main(model, yname):
         fig.tight_layout()
         wandb.log({"permutation_importances_plot": fig})
 
-        if True:
+        if False:
             # experiment with sage, can be slow
 
             wandb.log({"sage_importances_flag": "Y"})
