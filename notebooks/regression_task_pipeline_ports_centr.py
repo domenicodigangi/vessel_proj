@@ -34,7 +34,7 @@ logger = logging.getLogger(__file__)
 
 all_models = [RandomForestRegressor(random_state=0), XGBRegressor(),LinearRegression(), Ridge()]
 
-all_y_names = ["page_rank_w_log_trips", "page_rank_bin"]
+all_y_names = ["page_rank_w_log_trips", "page_rank_bin","log_page_rank_w_log_trips", "log_page_rank_bin"]
 
 yname = "page_rank_w_log_trips"
 model = RandomForestRegressor(random_state=0)
@@ -52,6 +52,10 @@ def main(model, yname):
 
         df_centr = pd.read_parquet(get_one_file_from_artifact('centr_ports:latest').filepath)
 
+        # add log of centralities to the list of centralities
+        for c in df_centr.columns:
+            df_centr[f"log_{c}"] = np.log10(df_centr[c])
+
 
         df_merge = df_centr.reset_index().merge(df_ports, how="left", left_on="index", right_on="INDEX_NO")
 
@@ -65,10 +69,11 @@ def main(model, yname):
 
         wandb.log({"feat_names_non_cat": feat_names_non_cat, "feat_names_cat": feat_names_cat})
 
-        le = preprocessing.LabelEncoder()
+        # le = preprocessing.LabelEncoder()
+        le = preprocessing.OrdinalEncoder()
         for col in X.columns:
             if col in feat_names_cat:
-                X[col] = le.fit_transform(X[col])
+                X[col] = le.fit_transform(X[col].values.reshape(-1, 1))
 
         all_Y = df_merge[df_centr.columns]
 
@@ -79,11 +84,19 @@ def main(model, yname):
         wandb.log({
             "train_set_size": X_train.shape[0],
             "test_set_size": X_test.shape[0],
-            "score_train_set": model.score(X_train, y_train), 
-            "score_test_set": model.score(X_test, y_test),
+            "r2_train_set": model.score(X_train, y_train), 
+            "r2_test_set": model.score(X_test, y_test),
+            "neg_mean_squared_log_error_train_set": model.score(X_train, y_train), 
+            "r2_test_set": model.score(X_test, y_test),
             })
 
-        scoring = {'cv_r2': make_scorer(sklearn.metrics.r2_score), 'cv_neg_mean_absolute_error': 'neg_mean_absolute_error', 'cv_neg_mean_squared_error': 'neg_mean_squared_error'}
+        scoring = {
+            'cv_r2': make_scorer(sklearn.metrics.r2_score),
+            'cv_neg_mean_absolute_error': 'neg_mean_absolute_error',
+            'cv_neg_mean_squared_error': 'neg_mean_squared_error',
+            'cv_neg_mean_squared_log_error': 'neg_mean_squared_log_error',
+            'cv_neg_mean_absolute_percentage_error': 'neg_mean_absolute_percentage_error'
+            }
 
         start_time = time.time()
         score_res = sklearn.model_selection.cross_validate(model, X_train, y_train, cv=cv_n_folds, scoring=scoring, n_jobs=10)
@@ -111,6 +124,7 @@ def main(model, yname):
         if True:
             # experiment with sage, can be slow
 
+            wandb.log({"sage_importances_flag": "Y"})
             max_feat_sage = 10
 
             feature_names = X_train.columns[:max_feat_sage].values
