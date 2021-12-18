@@ -34,15 +34,19 @@ logger = logging.getLogger(__file__)
     
 #%% load data from artifacts
 
+if False:
+    # variables for dev
+    yname = "page_rank_w_log_trips"
+    model = RandomForestRegressor(random_state=0)
+    run_sage = True
+    n_sage_perm = None
+    cv_n_folds = 5
+    sage_imputer = "DefaultImputer"
+    run = wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="regression_task", reinit=True, name="test_run")
 
-yname = "page_rank_w_log_trips"
-model = RandomForestRegressor(random_state=0)
-run_sage=False
-n_sage_perm =10000
-cv_n_folds = 5
-
-def main(model, yname, run_sage, n_sage_perm, cv_n_folds):
+def main(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer):
     
+    logger.info(f"Running {model} {yname} {run_sage} {n_sage_perm} {cv_n_folds}")
 
     with wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="regression_task", reinit=True) as run:
     
@@ -97,12 +101,13 @@ def main(model, yname, run_sage, n_sage_perm, cv_n_folds):
             'r2': metrics.r2_score,
             'neg_mean_absolute_error': metrics.mean_absolute_error,
             'mean_squared_error': metrics.mean_squared_error,
-            'mean_squared_log_error': metrics.mean_squared_log_error,
             'mean_absolute_percentage_error': metrics.mean_absolute_percentage_error
             }
 
-        wandb.log({f"test_set_{k}": f(y_test, y_pred_test) for k, f in score_funs.items()})
-        wandb.log({f"train_set_{k}": f(y_train, y_pred_train) for k, f in score_funs.items()})
+        test_score = {f"test_set_{k}": f(y_test, y_pred_test) for k, f in score_funs.items()}
+        wandb.log(test_score)
+        train_score = {f"train_set_{k}": f(y_train, y_pred_train) for k, f in score_funs.items()}
+        wandb.log(train_score)
 
         # run cross val on train set
         scoring = {k: make_scorer(f) for k,f in score_funs.items()}
@@ -110,16 +115,16 @@ def main(model, yname, run_sage, n_sage_perm, cv_n_folds):
         score_res = sklearn.model_selection.cross_validate(model, X_train, y_train, cv=cv_n_folds, scoring=scoring, n_jobs=10)
         wandb.log({"time_cv_scoring": time.time() - start_time})
 
-        wandb.log(score_res)
+        wandb.log({f"cv_{k}": v  for k, v in score_res.items()})
 
-        wandb.sklearn.plot_regressor(model, X_train, X_test, y_train, y_test, model_name=model_name)
+        # wandb.sklearn.plot_regressor(model, X_train, X_test, y_train, y_test, model_name=model_name)
 
         # %% Permutation feature importance from sklearn
         start_time = time.time()
         result = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42, n_jobs=20)
 
-        feat_importances = pd.Series(result.importances_mean, index=feature_names)
-        wandb.log({"permutation_feat_importances": feat_importances.to_frame().to_dict()})
+        feat_importances = pd.Series(result.importances_mean, index=feature_names).to_frame()
+        wandb.log({"permutation_feat_importances": feat_importances.to_dict()})
 
         fig, ax = plt.subplots()
         feat_importances.plot.bar(yerr=result.importances_std, ax=ax)
@@ -127,34 +132,43 @@ def main(model, yname, run_sage, n_sage_perm, cv_n_folds):
         ax.set_ylabel("Mean accuracy decrease")
         ax.set_xticklabels(feat_names)
         fig.tight_layout()
-        wandb.log({"permutation_importances_plot": fig})
+        wandb.log({"permutation_importances_plot": wandb.Image(fig)})
 
-        if run_sage:
+
+        wandb.log({"sage_importances_flag": str(run_sage)})
+
+        if run_sage in ["True", "Y", "T"]:
             # experiment with sage, can be slow
-
-            wandb.log({"sage_importances_flag": "T"})
             wandb.log({"n_sage_perm": n_sage_perm})
+            wandb.log({"sage_imputer": sage_imputer})
             max_feat_sage = X_train.shape[1]
 
             feature_names = X_train.columns[:max_feat_sage].values
 
-            model.fit(X_train.iloc[:, :max_feat_sage], y_train)
-            # Set up an imputer to handle missing features
-            imputer = sage.MarginalImputer(model, X_train.iloc[:, :max_feat_sage])
+            train_size = 1024
+            X_sage, _, y_sage, _ = train_test_split(X_train.iloc[:, :max_feat_sage].values, y_train.values, random_state=42, train_size = train_size)
 
+            model.fit(X_sage[:, :max_feat_sage], y_sage)
+            # Set up an imputer to handle missing features
+            if sage_imputer == "MarginalImputer":
+                imputer = sage.MarginalImputer(model, X_sage[:, :max_feat_sage])
+            elif sage_imputer == "DefaultImputer":
+                imputer = sage.DefaultImputer(model, np.zeros(max_feat_sage))
+            
             # Set up an estimator
             estimator = sage.PermutationEstimator(imputer, 'mse')
 
             # Calculate SAGE values
-            sage_values = estimator(X_test.iloc[:, :max_feat_sage].values, y_test.values, verbose=True, n_permutations=n_sage_perm)
+            sage_values = estimator(X_test.values[:, :max_feat_sage], y_test.values, verbose=True, n_permutations=n_sage_perm)
             fig = sage_values.plot(feature_names, return_fig=True)
+            [l.set_fontsize(8) for l in fig.axes[0].get_yticklabels()]
             
-            wandb.log({"sage_importances_plot": fig})
+            wandb.log({"sage_importances_plot": wandb.Image(fig)})
 
             # Feature importance from SAGE
             start_time = time.time()
             wandb.log({"time_sage_feat_imp": time.time() - start_time})
-        
+
 
 
 #%%
@@ -162,29 +176,31 @@ def main(model, yname, run_sage, n_sage_perm, cv_n_folds):
 if __name__ == "__main__":
     
     parser = argparse.ArgumentParser()
-    parser.add_argument("run_sage", default=False,
+    parser.add_argument("--run_sage", nargs='?', default="False",
                         help="compute and log sage feat importance")
-    parser.add_argument("n_sage_perm", default=50000,
+    parser.add_argument("--n_sage_perm", nargs='?', default=1000000, type=int,
                         help="Maximum number of permutations in sage. If null it goes on until convergence")
+    parser.add_argument("--sage_imputer", nargs='?', default="DefaultImputer",
+                        help="compute and log sage feat importance")
     # parser.add_argument("cv_n_folds", default=5)
     args = parser.parse_args()
 
+    print(args)
 
-    all_models = [RandomForestRegressor(random_state=0), LinearRegression(), Ridge()]
+
+    all_models = [RandomForestRegressor(random_state=0), LinearRegression()]
     all_y_names = ["page_rank_w_log_trips", "page_rank_bin","log_page_rank_w_log_trips", "log_page_rank_bin"]
     
     run_sage = args.run_sage
-    n_sage_perm = args.n_sage_perm
-    cv_n_folds = 5 #args.cv_n_folds
+    sage_imputer = args.sage_imputer
+    n_sage_perm = int(args.n_sage_perm)
+    cv_n_folds = 5 #int(args.cv_n_folds)
 
     for model in all_models:
         for yname in all_y_names:
-            try:
-                logger.info(f"Running {model}, y = {yname}")
-                main(model, yname, run_sage, n_sage_perm, cv_n_folds)
-                logger.info(f"Finished {model}, y = {yname}")
-            except:
-                logger.error(f"Failed {model}, y = {yname}")
-                
-
+            logger.info(f"Running {model}, y = {yname}")
+            main(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer)
+            logger.info(f"Finished {model}, y = {yname}")
+        
+        
 
