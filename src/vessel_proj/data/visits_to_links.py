@@ -1,4 +1,4 @@
-from src.data import get_data_path, shaper_slow
+from vessel_proj.data import get_data_path, shaper_slow
 
 input_file = get_data_path() / "raw" /'visits-augmentend.csv'
 output_file = get_data_path() / "raw" /'voyage_links.csv'

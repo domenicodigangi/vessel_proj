@@ -4,7 +4,7 @@ Start tracking data in wandb
 """
 import geopandas as gpd
 
-from src.data import  get_data_path, get_project_name, get_wandb_root_path
+from vessel_proj.data import  get_data_path, get_project_name, get_wandb_root_path
 
 import wandb
 

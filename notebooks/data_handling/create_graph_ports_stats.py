@@ -6,7 +6,7 @@ import numpy as np
 import networkx as nx
 from matplotlib import pyplot as plt
 
-from src.data import get_one_file_from_artifact, read_edge_list, get_wandb_root_path, get_data_path, save_parquet_and_wandb_log, get_project_name
+from vessel_proj.data import get_one_file_from_artifact, read_edge_list, get_wandb_root_path, get_data_path, save_parquet_and_wandb_log, get_project_name
 
 
 # %%
