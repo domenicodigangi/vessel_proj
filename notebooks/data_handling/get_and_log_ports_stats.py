@@ -95,7 +95,7 @@ def centralities():
         df_edges = read_edge_list(Path(dir) / 'voyage_links.csv')
         df_centr = df_edges_to_centr(df_edges)
         art_centr = wandb.Artifact("centralities-ports", type="dataset", description="df with different centrality measures for both binary and weightsd voyages graph")
-        with art_centr.new_file('centr_ports.parquet', mode='wb') as file:
+        with art_centr.new_file('centralities-ports.parquet', mode='wb') as file:
             df_centr.to_parquet(file)
 
         run.log_artifact(art_centr)
