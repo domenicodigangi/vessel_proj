@@ -1,12 +1,14 @@
 
+#%%
 from networkx.classes.function import density
 from networkx.classes.graphviews import generic_graph_view
 import pandas as pd
 import numpy as np
 import networkx as nx
 from matplotlib import pyplot as plt
-
-from vessel_proj.data import get_one_file_from_artifact, read_edge_list, get_wandb_root_path, get_project_name
+import wandb
+from pathlib import Path
+from vessel_proj.data import read_edge_list, get_wandb_root_path, get_project_name
 
 import argh
 
@@ -18,13 +20,7 @@ import argh
 # decidere come trattare i missing
 
 
-def edges_to_centr():
-    #%% get data from artifacts
-    art_edge = get_one_file_from_artifact('edge_list:latest')
-
-    df_edges = read_edge_list(art_edge.filepath)
-    df_edges.dtypes   
-
+def df_edges_to_centr(df_edges):   
     #%% Check for weird links
     ind_no_dur = df_edges["duration_days"]==0
     print(f"found {ind_no_dur.sum() } links with zero duration" )
@@ -89,10 +85,21 @@ def edges_to_centr():
 
     return df_centr
 
-def clean_ports_info():
-    # %% Drop some ports information
-    art_ports_info = get_one_file_from_artifact('ports_info_csv:latest')
-    df_ports = pd.read_csv(art_ports_info.filepath)
+def centralities():
+    """load list of voyages (edge_list), clean the graph, compute a set of centralities and log them as parquet"""
+    with wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="data_preprocessing", reinit=True) as run:
+
+        #%% get data from artifacts
+        art_edge = run.use_artifact(f"{get_project_name()}/edge_list:latest")
+        dir = art_edge.download(root=get_wandb_root_path())
+        df_edges = read_edge_list(Path(dir) / 'voyage_links.csv')
+        df_centr = df_edges_to_centr(df_edges)
+        art_centr = wandb.Artifact("centralities-ports", type="dataset", description="df with different centrality measures for both binary and weightsd voyages graph")
+        with art_centr.new_file('centr_ports.parquet', mode='wb') as file:
+            df_centr.to_parquet(file)
+
+def clean_ports_info(df_ports):
+    
 
     descr_num = df_ports.describe().transpose()
     descr_obj = df_ports.describe(include = ["object"]).transpose()
@@ -120,20 +127,20 @@ def clean_ports_info():
                 plt.show()
 
     return df_ports
-    
-def main():
+
+def wpi_features():
+    """load world port index info, cast types, drop some columns and store as parquet"""
     with wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="data_preprocessing", reinit=True) as run:
 
-        df_centr = edges_to_centr()
-        art_centr = wandb.Artifact("centralities-ports", type="dataset", description="df with different centrality measures for both binary and weightsd voyages graph")
-        with art_centr.new_file('centr_ports.parquet', mode='wb') as file:
-            df_centr.to_parquet(file)
+        art_ports = run.use_artifact(f"{get_project_name()}/ports_info:latest")
+        dir = art_ports.download(root=get_wandb_root_path())
+        df_ports = pd.read_csv(Path(dir) / "ports_info.csv")
 
-        df_ports = clean_ports_info()
-        art_ports = wandb.Artifact("ports_features", type="dataset", description="df with different port features from world port index")
-        with art_ports.new_file('ports_features.parquet', mode='wb') as file:
-            df_ports.to_parquet(file)
+        df_ports_clean = clean_ports_info(df_ports)
+        art_ports_clean = wandb.Artifact("ports_features", type="dataset", description="df with different port features from world port index")
+        with art_ports_clean.new_file('ports_features.parquet', mode='wb') as file:
+            df_ports_clean.to_parquet(file)
 
 
-argh.dispatch_command(main)
+argh.dispatch_commands([centralities, wpi_features])
 
