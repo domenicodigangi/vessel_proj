@@ -6,10 +6,7 @@ import logging
 import time
 from sklearn.model_selection import train_test_split
 from sklearn import preprocessing
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.svm import SVR
-from sklearn.linear_model import LinearRegression
-from sklearn.linear_model import Ridge
+from sklearn.ensemble import RandomForestClassifier
 import sklearn
 from sklearn import metrics
 
@@ -26,9 +23,11 @@ from sklearn.inspection import permutation_importance
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import make_scorer
 from sklearn.model_selection import cross_val_score
-from xgboost import XGBRegressor
+from sklearn.preprocessing import KBinsDiscretizer
+from xgboost import XGBClassifier
 import sage
-import argparse
+import argh
+from argh import arg, expects_obj
 
 logger = logging.getLogger(__file__)
     
@@ -37,19 +36,21 @@ logger = logging.getLogger(__file__)
 if False:
     # variables for dev
     yname = "page_rank_w_log_trips"
-    model = RandomForestRegressor(random_state=0)
+    model = RandomForestClassifier(random_state=0)
     run_sage = True
     n_sage_perm = None
     cv_n_folds = 5
     sage_imputer = "DefaultImputer"
-    run = wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="regression_task", reinit=True, name="test_run")
+    run = wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="regression_task", reinit=True, name="test_run", tags=["test_run"])
 
-def main(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer):
+def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bins, test_run_flag=False):
 
     logger.info(f"Running {model} {yname} {run_sage} {n_sage_perm} {cv_n_folds}")
 
     with wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="regression_task", reinit=True) as run:
-    
+        
+        if test_run_flag:
+            run.tags = run.tags + "test_run"
         model_name = type(model).__name__
 
         wandb.log({"model": model_name, "var_predicted": yname, "cv_n_folds": cv_n_folds})
@@ -84,7 +85,8 @@ def main(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer):
 
         all_Y = df_merge[df_centr.columns]
 
-        y = all_Y[yname]
+        y = KBinsDiscretizer(n_bins=n_bins).fit_transform(all_Y[yname])
+        
         X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42)
 
         wandb.log({
@@ -98,11 +100,7 @@ def main(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer):
         y_pred_test = model.predict(X_test) 
 
         score_funs = {
-            'r2': metrics.r2_score,
-            'neg_mean_absolute_error': metrics.mean_absolute_error,
-            'mean_squared_error': metrics.mean_squared_error,
-            'mean_absolute_percentage_error': metrics.mean_absolute_percentage_error
-            }
+            'accuracy': metrics.accuracy_score}
 
         test_score = {f"test_set_{k}": f(y_test, y_pred_test) for k, f in score_funs.items()}
         wandb.log(test_score)
@@ -169,38 +167,33 @@ def main(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer):
             start_time = time.time()
             wandb.log({"time_sage_feat_imp": time.time() - start_time})
 
-
-
 #%%
-
-if __name__ == "__main__":
-    
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--run_sage", nargs='?', default="False",
-                        help="compute and log sage feat importance")
-    parser.add_argument("--n_sage_perm", nargs='?', default=1000000, type=int,
-                        help="Maximum number of permutations in sage. If null it goes on until convergence")
-    parser.add_argument("--sage_imputer", nargs='?', default="DefaultImputer",
-                        help="compute and log sage feat importance")
-    # parser.add_argument("cv_n_folds", default=5)
-    args = parser.parse_args()
-
-    print(args)
-
-
-    all_models = [RandomForestRegressor(random_state=0), LinearRegression()]
+@arg("test_run_flag", default=False, help="tag as test run")
+@arg("run_sage", default=False, help="compute and log sage feat importance")
+@arg("n_sage_perm", default=1000000, help="Maximum number of permutations in sage. If null it goes on until convergence")
+@arg("cv_n_folds", default=5, help="N. Cross Val folds")
+@arg("sage_imputer", default="DefaultImputer", help="compute and log sage feat importance")
+def main(**kwargs):
+    all_models = [RandomForestClassifier(random_state=0), XGBClassifier()]
     all_y_names = ["page_rank_w_log_trips", "page_rank_bin","log_page_rank_w_log_trips", "log_page_rank_bin"]
     
-    run_sage = args.run_sage
-    sage_imputer = args.sage_imputer
-    n_sage_perm = int(args.n_sage_perm)
-    cv_n_folds = 5 #int(args.cv_n_folds)
+    run_sage = kwargs["run_sage"]
+    sage_imputer = kwargs["sage_imputer"]
+    n_sage_perm = int(kwargs["n_sage_perm"])
+    cv_n_folds = int(kwargs["cv_n_folds"])
 
     for model in all_models:
         for yname in all_y_names:
-            logger.info(f"Running {model}, y = {yname}")
-            main(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer)
-            logger.info(f"Finished {model}, y = {yname}")
-        
+            logger.info(f"Running {model}, y = {yname}, {kwargs}")
+            one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, test_run_flag=kwargs["test_run_flag"])
+            logger.info(f"Finished {model}, y = {yname}, {kwargs}")
+
+
+parser = argh.ArghParser()
+parser.set_default_command(main)
+
+if __name__ == "__main__":
+    parser.dispatch()
+    
         
 
