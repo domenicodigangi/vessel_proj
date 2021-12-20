@@ -4,6 +4,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 import logging
 import time
+from pathlib import Path
 from sklearn.model_selection import train_test_split
 from sklearn import preprocessing
 from sklearn.ensemble import RandomForestClassifier
@@ -55,9 +56,12 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
 
         wandb.log({"model": model_name, "var_predicted": yname, "cv_n_folds": cv_n_folds})
 
-        df_ports = pd.read_parquet(get_one_file_from_artifact('ports_features:latest').filepath)
+        dir = run.use_artifact('ports_features:latest').download(root=get_wandb_root_path())
+        df_ports = pd.read_parquet(Path(dir) / 'ports_features.parquet')
 
-        df_centr = pd.read_parquet(get_one_file_from_artifact('centr_ports:latest').filepath)
+        dir = run.use_artifact('centr_ports:latest').download(root=get_wandb_root_path())
+        df_centr = pd.read_parquet(Path(dir) / 'centr_ports.parquet')
+
 
         # add log of centralities to the list of centralities
         for c in df_centr.columns:
