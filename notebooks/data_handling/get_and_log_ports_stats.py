@@ -98,6 +98,9 @@ def centralities():
         with art_centr.new_file('centr_ports.parquet', mode='wb') as file:
             df_centr.to_parquet(file)
 
+        run.log_artifact(art_centr)
+
+
 def clean_ports_info(df_ports):
     
 
@@ -140,6 +143,8 @@ def wpi_features():
         art_ports_clean = wandb.Artifact("ports_features", type="dataset", description="df with different port features from world port index")
         with art_ports_clean.new_file('ports_features.parquet', mode='wb') as file:
             df_ports_clean.to_parquet(file)
+        
+        run.log_artifact(art_ports_clean)
 
 
 argh.dispatch_commands([centralities, wpi_features])
