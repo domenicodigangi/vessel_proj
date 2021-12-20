@@ -167,7 +167,7 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
                 imputer = sage.DefaultImputer(model, np.zeros(max_feat_sage))
             
             # Set up an estimator
-            estimator = sage.PermutationEstimator(imputer, 'mse')
+            estimator = sage.PermutationEstimator(imputer, 'cross entropy')
 
             # Calculate SAGE values
             sage_values = estimator(X_test.values[:, :max_feat_sage], y_test.values, verbose=True, n_permutations=n_sage_perm)
