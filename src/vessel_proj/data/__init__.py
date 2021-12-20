@@ -32,15 +32,11 @@ def get_project_root():
 def get_data_path():
     proj_root = get_project_root() 
     data_path = proj_root / "data"
-
-    logging.warning(f"using hardcoded path for data in barbera: {data_path}" )
-
     return data_path
 
 def get_wandb_root_path():
     root_path = get_data_path() / "root_wandb"
-    logging.warning(f"using hardcoded path for data in barbera: {root_path}" )
-
+    root_path.mkdir(exist_ok=True, parents=True)
     return root_path
 
 
