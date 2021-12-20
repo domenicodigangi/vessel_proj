@@ -55,7 +55,7 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
             run.tags = run.tags + "test_run"
         model_name = type(model).__name__
 
-        wandb.log({"model": model_name, "var_predicted": yname, "cv_n_folds": cv_n_folds})
+        wandb.log({"model": model_name, "var_predicted": yname, "cv_n_folds": cv_n_folds, "sage_imputer": sage_imputer, "n_bins_target": n_bins_target})
 
         dir = run.use_artifact('ports_features:latest').download(root=get_wandb_root_path())
         df_ports = pd.read_parquet(Path(dir) / 'ports_features.parquet')
@@ -67,8 +67,7 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
         # for c in df_centr.columns:
         #     df_centr[f"log_{c}"] = np.log(df_centr[c].values)
 
-        # df_centr.fillna(df_centr.min(skipna=True), inplace=True)
-            
+        # df_centr.fillna(df_centr.min(skipna=True), inplace=True)      
         df_merge = df_centr.reset_index().merge(df_ports, how="left", left_on="index", right_on="INDEX_NO")
 
         X = df_merge[df_ports.columns].drop(columns=["PORT_NAME", "Unnamed: 0", "REGION_NO"])
