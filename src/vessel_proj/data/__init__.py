@@ -8,6 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -26,11 +27,11 @@ def get_project_name():
     return "vessel-proj"
 
 def get_project_root():
-    return Path(__file__).parent.parent.parent.parent.parent
+    return Path(__file__).parent.parent.parent.parent
 
 def get_data_path():
     proj_root = get_project_root() 
-    data_path = proj_root.parent.parent.parent / "data" / "digiandomenico" / "vessel_proj" / "data"
+    data_path = proj_root / "data"
 
     logging.warning(f"using hardcoded path for data in barbera: {data_path}" )
 
@@ -140,7 +141,7 @@ def read_edge_list(filepath):
     df_edges["uid"] =df_edges["uid"].astype('category')
     return df_edges
 
-def save_parquet_and_wandb_log(run, df, name, fold):
+def save_parquet_and_wandb_log_locally(run, df, name, fold):
     
     # save locally and log it as local artifact, visible in wandb
     filepath = get_data_path() / fold / f"{name}.parquet"
@@ -151,3 +152,6 @@ def save_parquet_and_wandb_log(run, df, name, fold):
     artifact.add_reference('file:///' + str(filepath))
     run.log_artifact(artifact)
     logger.info(f"Logged it as artifact")
+
+
+    
