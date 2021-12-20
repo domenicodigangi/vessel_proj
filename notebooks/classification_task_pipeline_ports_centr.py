@@ -41,14 +41,15 @@ if False:
     run_sage = True
     n_sage_perm = None
     cv_n_folds = 5
+    n_bins_target = 3
     sage_imputer = "DefaultImputer"
-    run = wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="regression_task", reinit=True, name="test_run", tags=["test_run"])
+    run = wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="classification_task", reinit=True, name="test_run", tags=["test_run"])
 
 def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bins_target, test_run_flag=False):
 
     logger.info(f"Running {model} {yname} {run_sage} {n_sage_perm} {cv_n_folds}")
 
-    with wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="regression_task", reinit=True) as run:
+    with wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="classification_task", reinit=True) as run:
         
         if test_run_flag:
             run.tags = run.tags + "test_run"
@@ -62,11 +63,11 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
         dir = run.use_artifact('centralities-ports:latest').download(root=get_wandb_root_path())
         df_centr = pd.read_parquet(Path(dir) / 'centralities-ports.parquet')
 
-        # add log of centralities to the list of centralities
-        for c in df_centr.columns:
-            df_centr[f"log_{c}"] = np.log(df_centr[c].values)
+        # # add log of centralities to the list of centralities
+        # for c in df_centr.columns:
+        #     df_centr[f"log_{c}"] = np.log(df_centr[c].values)
 
-        df_centr.fillna(df_centr.min(skipna=True), inplace=True)
+        # df_centr.fillna(df_centr.min(skipna=True), inplace=True)
             
         df_merge = df_centr.reset_index().merge(df_ports, how="left", left_on="index", right_on="INDEX_NO")
 
@@ -74,8 +75,8 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
 
         feature_names = [col for col in X.columns]
 
-        feat_names_non_cat = ["TIDE_RANGE", "LATITUDE", "LONGITUDE"]
         feat_names = list(X.columns)
+        feat_names_non_cat = ["TIDE_RANGE", "LATITUDE", "LONGITUDE"]
         feat_names_cat = [f for f in feat_names if f not in feat_names_non_cat]
 
         wandb.log({"feat_names_non_cat": feat_names_non_cat, "feat_names_cat": feat_names_cat})
@@ -88,7 +89,7 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
 
         all_Y = df_merge[df_centr.columns]
 
-        y = KBinsDiscretizer(n_bins=n_bins_target).fit_transform(all_Y[yname])
+        y = pd.DataFrame(KBinsDiscretizer(n_bins=n_bins_target, encode='ordinal').fit_transform(all_Y[yname].values.reshape(-1, 1)))
         
         X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42)
 
@@ -99,11 +100,20 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
 
         model.fit(X_train, y_train)
 
-        y_pred_train = model.predict(X_train) 
-        y_pred_test = model.predict(X_test) 
+        y_pred_train = model.predict(X_train)
+        y_pred_test = model.predict(X_test)
+        y_probas_test = model.predict_proba(X_test)
+        
+        labels = list(range(n_bins_target))
+
+        wandb.sklearn.plot_confusion_matrix(y_test, y_pred_test, labels)
+        wandb.sklearn.plot_summary_metrics(model, X_train, y_train, X_test, y_test)        
+
 
         score_funs = {
-            'accuracy': metrics.accuracy_score}
+            'accuracy': metrics.accuracy_score,
+            'balanced_accuracy': metrics.balanced_accuracy_score,
+            }
 
         test_score = {f"test_set_{k}": f(y_test, y_pred_test) for k, f in score_funs.items()}
         wandb.log(test_score)
@@ -138,7 +148,7 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
 
         wandb.log({"sage_importances_flag": str(run_sage)})
 
-        if run_sage in ["True", "Y", "T"]:
+        if run_sage in ["True", "Y", "T", True]:
             # experiment with sage, can be slow
             wandb.log({"n_sage_perm": n_sage_perm})
             wandb.log({"sage_imputer": sage_imputer})
@@ -176,17 +186,15 @@ parser = argh.ArghParser()
 
 def main(
     test_run_flag : 'tag as test run' = False, 
-    run_sage : 'compute and log sage feat importance' = False, 
+    run_sage : 'compute and log sage feat importance' = True, 
     n_sage_perm : 'Maximum number of permutations in sage. If null it goes on until convergence' = 1000000, 
     cv_n_folds : 'N. Cross val folds' = 5,  
     n_bins_target : 'N. bins target' = 3,  
     sage_imputer ="DefaultImputer" 
     ):
     all_models = [RandomForestClassifier(random_state=0), XGBClassifier()]
-    all_y_names = ["page_rank_w_log_trips", "page_rank_bin","log_page_rank_w_log_trips", "log_page_rank_bin"]
+    all_y_names = ["page_rank_w_log_trips", "page_rank_bin"]
     
-    run_sage = run_sage
-    sage_imputer = sage_imputer
     n_sage_perm = int(n_sage_perm)
     cv_n_folds = int(cv_n_folds)
 
