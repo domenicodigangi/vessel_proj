@@ -44,7 +44,7 @@ if False:
     sage_imputer = "DefaultImputer"
     run = wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="regression_task", reinit=True, name="test_run", tags=["test_run"])
 
-def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bins, test_run_flag=False):
+def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bins_target, test_run_flag=False):
 
     logger.info(f"Running {model} {yname} {run_sage} {n_sage_perm} {cv_n_folds}")
 
@@ -59,9 +59,8 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
         dir = run.use_artifact('ports_features:latest').download(root=get_wandb_root_path())
         df_ports = pd.read_parquet(Path(dir) / 'ports_features.parquet')
 
-        dir = run.use_artifact('centr_ports:latest').download(root=get_wandb_root_path())
-        df_centr = pd.read_parquet(Path(dir) / 'centr_ports.parquet')
-
+        dir = run.use_artifact('centralities-ports:latest').download(root=get_wandb_root_path())
+        df_centr = pd.read_parquet(Path(dir) / 'centralities-ports.parquet')
 
         # add log of centralities to the list of centralities
         for c in df_centr.columns:
@@ -89,7 +88,7 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
 
         all_Y = df_merge[df_centr.columns]
 
-        y = KBinsDiscretizer(n_bins=n_bins).fit_transform(all_Y[yname])
+        y = KBinsDiscretizer(n_bins=n_bins_target).fit_transform(all_Y[yname])
         
         X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42)
 
@@ -172,28 +171,32 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
             wandb.log({"time_sage_feat_imp": time.time() - start_time})
 
 #%%
-@arg("test_run_flag", default=False, help="tag as test run")
-@arg("run_sage", default=False, help="compute and log sage feat importance")
-@arg("n_sage_perm", default=1000000, help="Maximum number of permutations in sage. If null it goes on until convergence")
-@arg("cv_n_folds", default=5, help="N. Cross Val folds")
-@arg("sage_imputer", default="DefaultImputer", help="compute and log sage feat importance")
-def main(**kwargs):
+parser = argh.ArghParser()
+
+
+def main(
+    test_run_flag : 'tag as test run' = False, 
+    run_sage : 'compute and log sage feat importance' = False, 
+    n_sage_perm : 'Maximum number of permutations in sage. If null it goes on until convergence' = 1000000, 
+    cv_n_folds : 'N. Cross val folds' = 5,  
+    n_bins_target : 'N. bins target' = 3,  
+    sage_imputer ="DefaultImputer" 
+    ):
     all_models = [RandomForestClassifier(random_state=0), XGBClassifier()]
     all_y_names = ["page_rank_w_log_trips", "page_rank_bin","log_page_rank_w_log_trips", "log_page_rank_bin"]
     
-    run_sage = kwargs["run_sage"]
-    sage_imputer = kwargs["sage_imputer"]
-    n_sage_perm = int(kwargs["n_sage_perm"])
-    cv_n_folds = int(kwargs["cv_n_folds"])
+    run_sage = run_sage
+    sage_imputer = sage_imputer
+    n_sage_perm = int(n_sage_perm)
+    cv_n_folds = int(cv_n_folds)
 
     for model in all_models:
         for yname in all_y_names:
-            logger.info(f"Running {model}, y = {yname}, {kwargs}")
-            one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, test_run_flag=kwargs["test_run_flag"])
-            logger.info(f"Finished {model}, y = {yname}, {kwargs}")
+            logger.info(f"Running {model}, y = {yname}")
+            one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bins_target, test_run_flag=test_run_flag)
+            logger.info(f"Finished {model}, y = {yname}")
 
 
-parser = argh.ArghParser()
 parser.set_default_command(main)
 
 if __name__ == "__main__":
