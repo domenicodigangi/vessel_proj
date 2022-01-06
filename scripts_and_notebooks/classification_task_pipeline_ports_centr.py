@@ -144,7 +144,7 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
 
         wandb.log({"sage_importances_flag": str(run_sage)})
 
-        if run_sage in ["True", "Y", "T"]:
+        if run_sage in ["True", "Y", "T", True]:
             # experiment with sage, can be slow
             wandb.log({"n_sage_perm": n_sage_perm})
             wandb.log({"sage_imputer": sage_imputer})
