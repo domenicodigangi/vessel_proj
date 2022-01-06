@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
 import logging
+from pathlib import Path
 import time
 from sklearn.model_selection import train_test_split
 from sklearn import preprocessing
@@ -33,13 +34,19 @@ from sklearn.metrics import accuracy_score
 from sklearn.metrics import make_scorer
 from sklearn.model_selection import cross_val_score
 from xgboost import XGBRegressor
-
+import seaborn as sns
 
 #%% get data from artifacts
 
-df_ports = pd.read_parquet(get_one_file_from_artifact('ports_features:latest').filepath)
+dir = wandb.use_artifact('ports_features:latest').download(root=get_wandb_root_path())
+df_ports = pd.read_parquet(Path(dir) / 'ports_features.parquet')
 
-df_centr = pd.read_parquet(get_one_file_from_artifact('centr_ports:latest').filepath)
+dir = wandb.use_artifact('centralities-ports:latest').download(root=get_wandb_root_path())
+df_centr = pd.read_parquet(Path(dir) / 'centralities-ports.parquet')
+
+
+#%% Centralities cluesters
+g=sns.jointplot(data=np.log(df_centr), x="centr_eig_w_log_trips", y="page_rank_w_log_trips", kind="hex")
 
 
 df_merge = df_centr.reset_index().merge(df_ports, how="left", left_on="index", right_on="INDEX_NO")
@@ -47,6 +54,14 @@ df_merge = df_centr.reset_index().merge(df_ports, how="left", left_on="index", r
 all_feat = df_merge[df_ports.columns].drop(columns=["PORT_NAME", "Unnamed: 0", "REGION_NO"])
 
 feature_names = [col for col in all_feat.columns]
+
+#%%
+df = df_merge[["page_rank_w_log_trips"]]
+
+g = sns.PairGrid(df, diag_sharey=False)
+g.map_upper(sns.scatterplot)
+g.map_lower(sns.kdeplot)
+g.map_diag(sns.kdeplot)
 
 
 #%%
