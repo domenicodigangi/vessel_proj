@@ -59,7 +59,7 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
 
         model_name = type(model).__name__
 
-        wandb.log({"model": model_name, "var_predicted": yname, "cv_n_folds": cv_n_folds, "n_bins": n_bins})
+        wandb.log({"model": model_name, "var_predicted": yname, "cv_n_folds": cv_n_folds, "n_bins": n_bins, "disc_strategy": disc_strategy})
 
         dir = run.use_artifact('ports_features:latest').download(root=get_wandb_root_path())
         df_ports = pd.read_parquet(Path(dir) / 'ports_features.parquet')
