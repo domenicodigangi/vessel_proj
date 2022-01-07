@@ -187,7 +187,7 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
 def main(test_run_flag=False, run_sage=True, n_sage_perm=1000000, n_bins_min=2, n_bins_max=6, cv_n_folds=5, sage_imputer="DefaultImputer", disc_strategy="kmeans", njobs=4):
 
     all_models = [RandomForestClassifier(random_state=0), XGBClassifier()]
-    all_y_names = ["page_rank_w_log_trips", "page_rank_bin"]
+    all_y_names = ["page_rank_w_log_trips", "page_rank_bin", "log_page_rank_w_log_trips", "log_page_rank_bin"]
   
     for model in all_models:
         for yname in all_y_names:
