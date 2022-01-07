@@ -33,8 +33,6 @@ def get_data_path():
     proj_root = get_project_root() 
     data_path = proj_root / "data"
 
-    logging.warning(f"using hardcoded path for data in barbera: {data_path}" )
-
     return data_path
 
 def get_wandb_root_path():
@@ -78,20 +76,17 @@ def get_one_file_from_artifact(name, run=None, type=None):
 
     return out
 
-def shaper_slow(input_file, output_file, nrows=None):
+def shaper_slow(df_visits, output_file=None):
     """ Convert df of time stamped vessel visits to ports to links, using a for loop over the groups of visits for each vessel
 
     
     """
-    
-    df_compact = pd.read_csv(input_file, nrows=nrows)
-
-    df_compact['start'] = pd.to_datetime(df_compact['start']) 
-    df_compact['end'] = pd.to_datetime(df_compact['end']) 
-    
-    
+        
+    df_visits['start'] = pd.to_datetime(df_visits['start']) 
+    df_visits['end'] = pd.to_datetime(df_visits['end']) 
+        
     l = []
-    groups = df_compact.groupby('uid')
+    groups = df_visits.groupby('uid')
 
     for name, dfg in tqdm(groups, desc="Computing edge lists", position=0, leave=True):
         for i in range(0, len(dfg)):
@@ -114,13 +109,17 @@ def shaper_slow(input_file, output_file, nrows=None):
 
 
     df_edges = pd.DataFrame(data = l)
-    if nrows is not None:
-        output_file = Path(output_file)
-        no_suff_name = output_file.name.replace(output_file.suffix, '')
-        output_file = Path(output_file.parent) / ( f"{no_suff_name}_from_{nrows}_visits{output_file.suffix}"  )
+    
+    df_edges["duration_seconds"] = df_edges["duration"].dt.total_seconds()
+    df_edges.drop(columns=["duration"], inplace=True)
 
+    if output_file is not None:
+         if ".csv" in str(output_file):
+            df_edges.to_csv(output_file)
+         elif ".parquet" in str(output_file):
+            df_edges.to_parquet(output_file)
 
-    df_edges.to_csv(output_file)
+    
 
     return df_edges
 

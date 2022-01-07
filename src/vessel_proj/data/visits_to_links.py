@@ -1,6 +1,6 @@
 from vessel_proj.data import get_data_path, shaper_slow
 
-input_file = get_data_path() / "raw" /'visits-augmentend.csv'
+input_file = get_data_path() / "raw" /'visits-augmented.csv'
 output_file = get_data_path() / "raw" /'voyage_links.csv'
 
 # df_vis = pd.read_csv(input_file)

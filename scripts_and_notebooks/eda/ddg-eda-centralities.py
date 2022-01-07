@@ -38,6 +38,7 @@ from vessel_proj.data import get_latest_port_data
 from sklearn.cluster import KMeans
 import seaborn as sns
 sns.set_theme(style="darkgrid")
+
 #%% get data from artifacts
 data = get_latest_port_data()
 df_feat = data["features"]
@@ -68,6 +69,12 @@ df_merge = df_centr.reset_index().merge(df_feat, how="left", left_on="index", ri
 all_feat = df_merge[df_feat.columns].drop(columns=["PORT_NAME", "Unnamed: 0", "REGION_NO"])
 
 feature_names = [col for col in all_feat.columns]
+
+
+df_merge.sort_values(by="page_rank_w_log_trips", ascending=False)[["page_rank_w_log_trips", "PORT_NAME"]].head(20)
+
+centr_name = "page_rank_bin"
+df_merge.sort_values(by=centr_name, ascending=False)[[centr_name, "PORT_NAME"]].head(20)
 
 #%%
 df = df_merge[["page_rank_w_log_trips"]]
