@@ -34,24 +34,38 @@ from sklearn.metrics import accuracy_score
 from sklearn.metrics import make_scorer
 from sklearn.model_selection import cross_val_score
 from xgboost import XGBRegressor
+from vessel_proj.data import get_latest_port_data
+from sklearn.cluster import KMeans
 import seaborn as sns
-
+sns.set_theme(style="darkgrid")
 #%% get data from artifacts
-
-dir = wandb.use_artifact('ports_features:latest').download(root=get_wandb_root_path())
-df_ports = pd.read_parquet(Path(dir) / 'ports_features.parquet')
-
-dir = wandb.use_artifact('centralities-ports:latest').download(root=get_wandb_root_path())
-df_centr = pd.read_parquet(Path(dir) / 'centralities-ports.parquet')
+data = get_latest_port_data()
+df_feat = data["features"]
+df_centr = data["centralities"]
 
 
-#%% Centralities cluesters
+#%% Scatter of weighted vs binary centr
+
+g=sns.jointplot(data=df_centr, x="centr_eig_w_log_trips", y="page_rank_w_log_trips", kind="hex")
 g=sns.jointplot(data=np.log(df_centr), x="centr_eig_w_log_trips", y="page_rank_w_log_trips", kind="hex")
 
+#%% number of clusters
+centr = "page_rank_w_log_trips"
+df = df_centr[[centr]]
+Nc = range(1, 20)
+kmeans_list = [KMeans(n_clusters=i) for i in Nc]
+score = [kmeans.fit(df).score(df) for kmeans in kmeans_list]
+df_score = pd.DataFrame(data = {"clusters": Nc,"score": score})
+sns.relplot(data=df_score, x="clusters", y="score")
 
-df_merge = df_centr.reset_index().merge(df_ports, how="left", left_on="index", right_on="INDEX_NO")
+kmeans = KMeans(n_clusters=3, random_state=0).fit(df)
+df['cluster'] = kmeans.labels_
+sns.boxplot(df.cluster, df[centr])
 
-all_feat = df_merge[df_ports.columns].drop(columns=["PORT_NAME", "Unnamed: 0", "REGION_NO"])
+#%%
+df_merge = df_centr.reset_index().merge(df_feat, how="left", left_on="index", right_on="INDEX_NO")
+
+all_feat = df_merge[df_feat.columns].drop(columns=["PORT_NAME", "Unnamed: 0", "REGION_NO"])
 
 feature_names = [col for col in all_feat.columns]
 

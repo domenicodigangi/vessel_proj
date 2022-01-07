@@ -153,5 +153,25 @@ def save_parquet_and_wandb_log_locally(run, df, name, fold):
     run.log_artifact(artifact)
     logger.info(f"Logged it as artifact")
 
+def get_latest_port_data(run=None):
+    proj_name=get_project_name()
+    if run is not None:
+
+        dir = run.use_artifact(f"{proj_name}/ports_features:latest").download(root=get_wandb_root_path())
+        df_feat = pd.read_parquet(Path(dir) / 'ports_features.parquet')
+
+        dir = run.use_artifact(f"{proj_name}centralities-ports:latest").download(root=get_wandb_root_path())
+        df_centr = pd.read_parquet(Path(dir) / 'centralities-ports.parquet')
+    else:
+        api = wandb.Api()
+        dir = api.artifact(f"{proj_name}/ports_features:latest").download(root=get_wandb_root_path())
+        df_feat = pd.read_parquet(Path(dir) / 'ports_features.parquet')
+
+        dir = api.artifact(f"{proj_name}/centralities-ports:latest").download(root=get_wandb_root_path())
+        df_centr = pd.read_parquet(Path(dir) / 'centralities-ports.parquet')
+
+
+
+    return {"centralities": df_centr, "features": df_feat}
 
     
