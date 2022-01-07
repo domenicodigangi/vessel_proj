@@ -45,7 +45,7 @@ if False:
     n_sage_perm = None
     cv_n_folds = 5
     sage_imputer = "DefaultImputer"
-    run = wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="regression_task", reinit=True, name="test_run", tags=["test_run"])
+    run = wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="classification_task", reinit=True, name="test_run", tags=["test_run"])
     n_bins=3
     test_run_flag=True
     disc_strategy="kmeans"
