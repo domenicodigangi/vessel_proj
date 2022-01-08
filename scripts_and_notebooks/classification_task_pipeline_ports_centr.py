@@ -30,6 +30,7 @@ from xgboost import XGBClassifier
 import sage
 import argh
 from argh import arg, expects_obj
+from sklearn.preprocessing import StandardScaler
 import seaborn as sns
 sns.set_theme(style="darkgrid")
 
@@ -53,9 +54,7 @@ if False:
 
 
 #%%
-def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bins, disc_strategy, test_run_flag=False):
-
-    logger.info(f"Running {model} {yname} {run_sage} {n_sage_perm} {cv_n_folds}")
+def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bins, disc_strategy, log_of_target: bool, test_run_flag=False):
 
     with wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="classification_task", reinit=True) as run:
         
@@ -64,21 +63,25 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
 
         model_name = type(model).__name__
 
-        wandb.log({"model": model_name, "var_predicted": yname, "cv_n_folds": cv_n_folds, "n_bins": n_bins, "disc_strategy": disc_strategy})
+        run_pars = {"model": model_name, "var_predicted": yname, "cv_n_folds": cv_n_folds, "n_bins": n_bins, "disc_strategy": disc_strategy, "log_of_target": log_of_target, "cv_n_folds": cv_n_folds, "sage_imputer": sage_imputer, "run_sage": run_sage, "n_sage_perm": n_sage_perm} 
+
+        wandb.log(run_pars)
+        logger.info(f"Running {run_pars}")
 
         data = get_latest_port_data()
         df_feat = data["features"]
         df_centr = data["centralities"]
 
-        # add log of centralities to the list of centralities
-        for c in df_centr.columns:
-            df_centr[f"log_{c}"] = np.log(df_centr[c].values)
+        #add avg of different measures
+        scaler = StandardScaler()
+        df = df_centr[["page_rank_bin", "page_rank_w_log_trips", "closeness_bin", "betweenness_bin"]]
+        df_centr["avg_centr"] = scaler.fit_transform(df).mean(axis=1)
 
-        df_centr.fillna(df_centr.min(skipna=True), inplace=True)
-            
-        df_merge = df_centr.reset_index().merge(df_feat, how="left", left_on="index", right_on="INDEX_NO")
+        df_centr["avg_rank_centr"] = df.rank().mean(axis=1)
 
-        X = df_merge[df_feat.columns].drop(columns=["PORT_NAME", "Unnamed: 0", "REGION_NO"])
+        df_merge = df_centr[yname].reset_index().merge(df_feat, how="left", left_on="index", right_on="INDEX_NO")
+
+        X = df_merge[df_feat.columns].drop(columns=["PORT_NAME", "REGION_NO"])
 
         feature_names = [col for col in X.columns]
 
@@ -93,18 +96,24 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
         le = preprocessing.OrdinalEncoder()
         for col in X.columns:
             if col in feat_names_cat:
-                X[col] = le.fit_transform(X[col].values.reshape(-1, 1))
+                X[col] = le.fit_transform(X[[col]])
 
-        all_Y = df_merge[df_centr.columns]
+        target = df_merge[[yname]].rename(columns={yname: "continuous"})
 
-        y = KBinsDiscretizer(n_bins=n_bins, encode="ordinal", strategy=disc_strategy).fit_transform(all_Y[[yname]]).ravel()
+
+        if disc_strategy.startswith("top_"):
+            n_top = int(disc_strategy[:4])
+
+            target.sort_values(by="continuous", ascending=False)
+            target["discrete"] = 0
+            target["discrete"].iloc[:n_top] = 1
+        else:
+            target["discrete"] = KBinsDiscretizer(n_bins=n_bins, encode="ordinal", strategy=disc_strategy).fit_transform(target[["continuous"]])
         
-        df = df_centr[[yname]]
-        df['cluster'] = y
         fig, ax = plt.subplots()
-        g=sns.boxplot(df.cluster, df[yname], ax=ax)
+        g=sns.boxplot(target["discrete"], target["continuous"], ax=ax)
         # Calculate number of obs per group & median to position labels
-        nobs = [f"n obs {int(k)}: {v}"  for k, v in df['cluster'].value_counts().iteritems()]
+        nobs = [f"n obs {int(k)}: {v}"  for k, v in target['discrete'].value_counts().iteritems()]
         plt.legend(nobs)
         wandb.log({"boxplots_clusters": wandb.Image(fig)})
 
@@ -122,7 +131,7 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
         scoring = {k: make_scorer(f) for k,f in score_funs.items()}
         start_time = time.time()
         score_res = sklearn.model_selection.cross_validate(model, X_train, y_train, cv=cv_n_folds, scoring=scoring, n_jobs=10)
-        
+
         wandb.log({f"cv_{k}": v  for k, v in score_res.items()})
 
         model.fit(X_train, y_train)
@@ -145,21 +154,15 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
         fig.tight_layout()
         wandb.log({"permutation_importances_plot": wandb.Image(fig)})
 
-
-        wandb.log({"sage_importances_flag": str(run_sage)})
-
         if run_sage in ["True", "Y", "T", True]:
             # experiment with sage, can be slow
-            wandb.log({"n_sage_perm": n_sage_perm})
-            wandb.log({"sage_imputer": sage_imputer})
-           
+
             model.fit(X_train, y_train)
             # Set up an imputer to handle missing features
             if sage_imputer == "MarginalImputer":
                 imputer = sage.MarginalImputer(model, X_train)
             elif sage_imputer == "DefaultImputer":
                 imputer = sage.DefaultImputer(model, np.zeros(X_train.shape[1]))
-            
 
             # Set up an estimator
             estimator = sage.PermutationEstimator(imputer, 'cross entropy')
@@ -168,7 +171,7 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
             sage_values = estimator(X_test.values, y_test, verbose=True, n_permutations=n_sage_perm)
             fig = sage_values.plot(feature_names, return_fig=True)
             [l.set_fontsize(8) for l in fig.axes[0].get_yticklabels()]
-            
+
             wandb.log({"sage_importances_plot": wandb.Image(fig)})
 
             # Feature importance from SAGE
@@ -180,22 +183,24 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
 @arg("--run_sage", help="compute and log sage feat importance")
 @arg("--n_bins_min", help="Min Number of bins for the target variable")
 @arg("--n_bins_max", help="Max Number of bins for the target variable")
-@arg("--disc_strategy", help="How are we going to define bins? https://scikit-learn.org/stable/modules/preprocessing.html#preprocessing-discretization")
+@arg("--disc_strategy", help="How are we going to define bins? top_100 (any number instead of 100), or kmeans https://scikit-learn.org/stable/modules/preprocessing.html#preprocessing-discretization")
 @arg("--n_sage_perm", help="Maximum number of permutations in sage. If null it goes on until convergence")
 @arg("--cv_n_folds", help="N. Cross Val folds")
 @arg("--sage_imputer", help="compute and log sage feat importance")
 def main(test_run_flag=False, run_sage=True, n_sage_perm=1000000, n_bins_min=2, n_bins_max=6, cv_n_folds=5, sage_imputer="DefaultImputer", disc_strategy="kmeans", njobs=4):
 
     all_models = [RandomForestClassifier(random_state=0), XGBClassifier()]
-    all_y_names = ["page_rank_w_log_trips", "page_rank_bin", "log_page_rank_w_log_trips", "log_page_rank_bin"]
+    all_y_names = ["page_rank_w_log_trips", "page_rank_bin"]
   
     for model in all_models:
         for yname in all_y_names:
-            
-            logger.info(f"Running {model}, y = {yname}, {model} {yname} {run_sage} {n_sage_perm} {cv_n_folds} {sage_imputer} {n_bins_min} {n_bins_max} {test_run_flag}")
-            
-            for n_bins in range(n_bins_min, n_bins_max+1):
+
+            if disc_strategy.startswith("top_"):
+                n_bins = 2
                 one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bins, disc_strategy, test_run_flag=test_run_flag)
+            else:
+                for n_bins in range(n_bins_min, n_bins_max+1):
+                    one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bins, disc_strategy, test_run_flag=test_run_flag)
 
             logger.info(f"Finished {model}, y = {yname}, {model} {yname} {run_sage} {n_sage_perm} {cv_n_folds} {sage_imputer} {n_bins_min} {n_bins_max} {test_run_flag}")
             
