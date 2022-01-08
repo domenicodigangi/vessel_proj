@@ -66,7 +66,7 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
         run_pars = {"model": model_name, "var_predicted": yname, "cv_n_folds": cv_n_folds, "n_bins": n_bins, "disc_strategy": disc_strategy, "log_of_target": log_of_target, "cv_n_folds": cv_n_folds, "sage_imputer": sage_imputer, "run_sage": run_sage, "n_sage_perm": n_sage_perm} 
 
         wandb.log(run_pars)
-        logger.info(f"Running {run_pars}")
+        logger.info(f"RUNNING {run_pars}")
 
         data = get_latest_port_data()
         df_feat = data["features"]
@@ -178,6 +178,8 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
             start_time = time.time()
             wandb.log({"time_sage_feat_imp": time.time() - start_time})
 
+        logger.info(f"FINISHED {run_pars}")
+
 #%%
 @arg("--test_run_flag", help="tag as test run")
 @arg("--run_sage", help="compute and log sage feat importance")
@@ -202,7 +204,6 @@ def main(test_run_flag=False, run_sage=True, n_sage_perm=1000000, n_bins_min=2, 
                 for n_bins in range(n_bins_min, n_bins_max+1):
                     one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bins, disc_strategy, test_run_flag=test_run_flag)
 
-            logger.info(f"Finished {model}, y = {yname}, {model} {yname} {run_sage} {n_sage_perm} {cv_n_folds} {sage_imputer} {n_bins_min} {n_bins_max} {test_run_flag}")
             
             
 parser = argh.ArghParser()
