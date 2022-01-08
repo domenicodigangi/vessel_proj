@@ -8,13 +8,16 @@ import networkx as nx
 from matplotlib import pyplot as plt
 import wandb
 from pathlib import Path
-from vessel_proj.data import read_edge_list, get_wandb_root_path, get_project_name
+from vessel_proj.data import set_types_edge_list, get_wandb_root_path, get_project_name
 
 import argh
 
 # %%
+TODO: add betweenes centrality here
 
 
+if False:
+    run = wandb.init(project=get_project_name(), name="create_centrality_data", dir=get_wandb_root_path(), group="data_preprocessing", reinit=True) 
 def df_edges_to_centr(df_edges):   
     #%% Check for weird links
     ind_no_dur = df_edges["duration_days"]==0
@@ -80,20 +83,22 @@ def df_edges_to_centr(df_edges):
 
     return df_centr
 
-def centralities():
+def main():
     """load list of voyages (edge_list), clean the graph, compute a set of centralities and log them as parquet"""
     with wandb.init(project=get_project_name(), name="create_centrality_data", dir=get_wandb_root_path(), group="data_preprocessing", reinit=True) as run:
 
         #%% get data from artifacts
         art_edge = run.use_artifact(f"{get_project_name()}/edge_list:latest")
         dir = art_edge.download(root=get_wandb_root_path())
-        df_edges = read_edge_list(Path(dir) / 'voyage_links.csv')
+        df_edges = pd.read_parquet(Path(dir) / 'edge_list.parquet')
+
+        df_edges = set_types_edge_list(df_edges)
+
         df_centr = df_edges_to_centr(df_edges)
         art_centr = wandb.Artifact("centralities-ports", type="dataset", description="df with different centrality measures for both binary and weightsd voyages graph")
         with art_centr.new_file('centralities-ports.parquet', mode='wb') as file:
             df_centr.to_parquet(file)
 
         run.log_artifact(art_centr)
-
-argh.dispatch_command(centralities)
+argh.dispatch_command(main)
 

@@ -123,12 +123,8 @@ def shaper_slow(df_visits, output_file=None):
 
     return df_edges
 
-def read_edge_list(filepath):
-    df_edges = pd.read_csv(filepath)
-    df_edges["start_date"] = pd.to_datetime(df_edges["start_date"])
-    df_edges["end_date"] = pd.to_datetime(df_edges["end_date"])
-    df_edges["duration"] = pd.to_timedelta(df_edges["duration"])
-    df_edges["duration_days"] = df_edges["duration"].dt.total_seconds()/(60*60*24)
+def set_types_edge_list(df_edges):
+    df_edges["duration_days"] = df_edges["duration_seconds"]/(60*60*24)
     df_edges["vesseltype"] = df_edges["vesseltype"].astype('category')
     df_edges["start_port"] = df_edges["start_port"].astype('category')
     df_edges["end_port"] =df_edges["end_port"].astype(df_edges["start_port"].dtype)
@@ -139,6 +135,7 @@ def read_edge_list(filepath):
     df_edges["mmsi"] =df_edges["mmsi"].astype('category')
     df_edges["uid"] =df_edges["uid"].astype('category')
     return df_edges
+
 
 def save_parquet_and_wandb_log_locally(run, df, name, fold):
     
