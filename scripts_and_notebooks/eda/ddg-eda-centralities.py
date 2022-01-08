@@ -45,10 +45,26 @@ df_feat = data["features"]
 df_centr = data["centralities"]
 
 
-#%% Scatter of weighted vs binary centr
 
-g=sns.jointplot(data=df_centr, x="centr_eig_w_log_trips", y="page_rank_w_log_trips", kind="hex")
-g=sns.jointplot(data=np.log(df_centr), x="centr_eig_w_log_trips", y="page_rank_w_log_trips", kind="hex")
+#%% Scatter
+df = df_centr.drop(columns=["page_rank_w_trips", "centr_eig_w_trips", "centr_eig_bin", "centr_eig_w_log_trips"])
+
+def hexbin(x, y, color, **kwargs):
+    cmap = sns.light_palette(color, as_cmap=True)
+    plt.hexbin(x, y, gridsize=15, cmap=cmap, **kwargs)
+
+g = sns.PairGrid(df)
+g.map_upper(sns.scatterplot)
+g.map_lower(hexbin)
+g.map_diag(sns.histplot)
+
+#%%
+
+g = sns.PairGrid(np.log(df))
+g.map_upper(sns.scatterplot)
+g.map_lower(hexbin)
+g.map_diag(sns.histplot)
+
 
 #%% number of clusters
 centr = "page_rank_w_log_trips"
@@ -106,34 +122,5 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42)
 scoring = {'cv_r2': make_scorer(sklearn.metrics.r2_score), 'cv_neg_mean_absolute_error': 'neg_mean_absolute_error', 'cv_neg_mean_squared_error': 'neg_mean_squared_error'}
 
 #%%
-
-pipe = Pipeline(steps=[
-    ('feature_selection', SelectKBest(mutual_info_regression, k=55)), 
-    # ('feature_selection', SelectFromModel(RandomForestRegressor())), 
-    # ('regression', SVR())
-    ('regression', RandomForestRegressor())
-])
-
-start_time = time.time()
-score_res = sklearn.model_selection.cross_validate(pipe, X_train, np.log(y_train), cv=cv_n_folds, scoring=scoring, n_jobs=10)
-print({"time_cv_scoring": time.time() - start_time})
-print(score_res["test_cv_r2"])
-
-
-# %%
-
-pipe = Pipeline(steps=[
-    ('make_class', SelectKBest(mutual_info_regression, k=55)), 
-    ('feature_selection', SelectKBest(mutual_info_regression, k=55)), 
-    # ('feature_selection', SelectFromModel(RandomForestRegressor())), 
-    # ('regression', SVR())
-    ('regression', RandomForestRegressor())
-])
-
-start_time = time.time()
-score_res = sklearn.model_selection.cross_validate(pipe, X_train, np.log(y_train), cv=cv_n_folds, scoring=scoring, n_jobs=10)
-print({"time_cv_scoring": time.time() - start_time})
-print(score_res["test_cv_r2"])
-
 
 # %%
