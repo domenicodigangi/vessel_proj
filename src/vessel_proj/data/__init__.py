@@ -132,8 +132,8 @@ def set_types_edge_list(df_edges):
     df_edges["end_port_name"] =df_edges["end_port_name"].astype(df_edges["start_port_name"].dtype)
     df_edges["start_region"] =df_edges["start_region"].astype('category')
     df_edges["end_region"] =df_edges["end_region"].astype(df_edges["end_region"].dtype)
-    df_edges["mmsi"] =df_edges["mmsi"].astype('category')
-    df_edges["uid"] =df_edges["uid"].astype('category')
+    df_edges["mmsi"] = df_edges["mmsi"].astype('category')
+    df_edges["uid"] = df_edges["uid"].astype('category')
     return df_edges
 
 
