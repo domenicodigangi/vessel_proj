@@ -26,6 +26,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.metrics import make_scorer
 from sklearn.model_selection import cross_val_score
 from sklearn.preprocessing import KBinsDiscretizer
+from sklearn.impute import SimpleImputer
 from xgboost import XGBClassifier
 import sage
 import argh
@@ -50,12 +51,13 @@ if False:
     n_bins=3
     test_run_flag=True
     disc_strategy="kmeans"
+    log_of_target=False
 
 
 
 #%%
 def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bins, disc_strategy, log_of_target: bool, test_run_flag=False):
-
+    
     with wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="classification_task", reinit=True) as run:
         
         if test_run_flag:
@@ -98,7 +100,12 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
             if col in feat_names_cat:
                 X[col] = le.fit_transform(X[[col]])
 
+        my_imputer = SimpleImputer()
+        X_imputed = my_imputer.fit_transform(X)
+        X = pd.DataFrame(data=X_imputed, columns=X.columns)
+
         target = df_merge[[yname]].rename(columns={yname: "continuous"})
+        if log_of_target:
 
 
         if disc_strategy.startswith("top_"):
@@ -189,7 +196,7 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
 @arg("--n_sage_perm", help="Maximum number of permutations in sage. If null it goes on until convergence")
 @arg("--cv_n_folds", help="N. Cross Val folds")
 @arg("--sage_imputer", help="compute and log sage feat importance")
-def main(test_run_flag=False, run_sage=True, n_sage_perm=1000000, n_bins_min=2, n_bins_max=6, cv_n_folds=5, sage_imputer="DefaultImputer", disc_strategy="kmeans", njobs=4):
+def main(test_run_flag=False, run_sage=True, n_sage_perm=1000000, n_bins_min=2, n_bins_max=6, cv_n_folds=5, sage_imputer="DefaultImputer", disc_strategy="kmeans", log_of_target=False, njobs=4):
 
     all_models = [RandomForestClassifier(random_state=0), XGBClassifier()]
     all_y_names = ["page_rank_w_log_trips", "page_rank_bin"]
@@ -202,7 +209,7 @@ def main(test_run_flag=False, run_sage=True, n_sage_perm=1000000, n_bins_min=2, 
                 one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bins, disc_strategy, test_run_flag=test_run_flag)
             else:
                 for n_bins in range(n_bins_min, n_bins_max+1):
-                    one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bins, disc_strategy, test_run_flag=test_run_flag)
+                    one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bins, disc_strategy, log_of_target, test_run_flag=test_run_flag)
 
             
             
