@@ -48,15 +48,16 @@ if False:
     cv_n_folds = 5
     sage_imputer = "DefaultImputer"
     run = wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="classification_task", reinit=True, name="test_run", tags=["test_run"])
-    n_bins=3
+
     test_run_flag=True
-    disc_strategy="kmeans"
+    disc_strategy="top_100"
+    disc_strategy="kmeans_3"
     log_of_target=False
 
 
 
 #%%
-def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bins, disc_strategy, log_of_target: bool, test_run_flag=False):
+def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, disc_strategy, log_of_target: bool, test_run_flag=False):
     
     with wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="classification_task", reinit=True) as run:
         
@@ -65,7 +66,7 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
 
         model_name = type(model).__name__
 
-        run_pars = {"model": model_name, "var_predicted": yname, "cv_n_folds": cv_n_folds, "n_bins": n_bins, "disc_strategy": disc_strategy, "log_of_target": log_of_target, "cv_n_folds": cv_n_folds, "sage_imputer": sage_imputer, "run_sage": run_sage, "n_sage_perm": n_sage_perm} 
+        run_pars = {"model": model_name, "var_predicted": yname, "cv_n_folds": cv_n_folds, "disc_strategy": disc_strategy, "log_of_target": log_of_target, "cv_n_folds": cv_n_folds, "sage_imputer": sage_imputer, "run_sage": run_sage, "n_sage_perm": n_sage_perm} 
 
         wandb.log(run_pars)
         logger.info(f"RUNNING {run_pars}")
@@ -106,16 +107,20 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
 
         target = df_merge[[yname]].rename(columns={yname: "continuous"})
         if log_of_target:
-
+            target["continuous_original"] = target["continuous"]
+            target["continuous"] = np.log10(target["continuous"])
 
         if disc_strategy.startswith("top_"):
-            n_top = int(disc_strategy[:4])
-
-            target.sort_values(by="continuous", ascending=False)
+            n_top = int(disc_strategy[4:])
+            n_bins = 2
+            target.sort_values(by="continuous", ascending=False, inplace=True)
             target["discrete"] = 0
             target["discrete"].iloc[:n_top] = 1
+        elif disc_strategy.startswith("kmeans_"):
+            n_bins = int(disc_strategy[7:]) 
+            target["discrete"] = KBinsDiscretizer(n_bins=n_bins, encode="ordinal", strategy="kmeans").fit_transform(target[["continuous"]])
         else:
-            target["discrete"] = KBinsDiscretizer(n_bins=n_bins, encode="ordinal", strategy=disc_strategy).fit_transform(target[["continuous"]])
+            raise Exception()
         
         fig, ax = plt.subplots()
         g=sns.boxplot(target["discrete"], target["continuous"], ax=ax)
@@ -124,7 +129,9 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
         plt.legend(nobs)
         wandb.log({"boxplots_clusters": wandb.Image(fig)})
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42)
+
+        y = target["discrete"]
+        X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42, stratify=y)
 
         wandb.log({
             "train_set_size": X_train.shape[0],
@@ -140,6 +147,7 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
         score_res = sklearn.model_selection.cross_validate(model, X_train, y_train, cv=cv_n_folds, scoring=scoring, n_jobs=10)
 
         wandb.log({f"cv_{k}": v  for k, v in score_res.items()})
+        wandb.log({f"avg_cv_accuracy": np.mean(score_res["test_accuracy"])})
 
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
@@ -175,7 +183,7 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
             estimator = sage.PermutationEstimator(imputer, 'cross entropy')
 
             # Calculate SAGE values
-            sage_values = estimator(X_test.values, y_test, verbose=True, n_permutations=n_sage_perm)
+            sage_values = estimator(X_test.values, y_test.values, verbose=True, n_permutations=n_sage_perm)
             fig = sage_values.plot(feature_names, return_fig=True)
             [l.set_fontsize(8) for l in fig.axes[0].get_yticklabels()]
 
@@ -190,26 +198,26 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bin
 #%%
 @arg("--test_run_flag", help="tag as test run")
 @arg("--run_sage", help="compute and log sage feat importance")
-@arg("--n_bins_min", help="Min Number of bins for the target variable")
-@arg("--n_bins_max", help="Max Number of bins for the target variable")
-@arg("--disc_strategy", help="How are we going to define bins? top_100 (any number instead of 100), or kmeans https://scikit-learn.org/stable/modules/preprocessing.html#preprocessing-discretization")
 @arg("--n_sage_perm", help="Maximum number of permutations in sage. If null it goes on until convergence")
 @arg("--cv_n_folds", help="N. Cross Val folds")
 @arg("--sage_imputer", help="compute and log sage feat importance")
-def main(test_run_flag=False, run_sage=True, n_sage_perm=1000000, n_bins_min=2, n_bins_max=6, cv_n_folds=5, sage_imputer="DefaultImputer", disc_strategy="kmeans", log_of_target=False, njobs=4):
+@arg("--disc_strategy", help="How are we going to define bins? top_100 (any number instead of 100), or kmeans https://scikit-learn.org/stable/modules/preprocessing.html#preprocessing-discretization")
+def main(test_run_flag=False, run_sage=False, n_sage_perm=1000000, cv_n_folds=5, sage_imputer="DefaultImputer", disc_strategy="kmeans", log_of_target=False, njobs=4):
 
     all_models = [RandomForestClassifier(random_state=0), XGBClassifier()]
-    all_y_names = ["page_rank_w_log_trips", "page_rank_bin"]
+    all_y_names = ["page_rank_bin", "page_rank_w_log_trips", "closeness_bin", "betweenness_bin", "avg_rank_centr"]
   
     for model in all_models:
         for yname in all_y_names:
 
-            if disc_strategy.startswith("top_"):
-                n_bins = 2
-                one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bins, disc_strategy, test_run_flag=test_run_flag)
-            else:
-                for n_bins in range(n_bins_min, n_bins_max+1):
-                    one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, n_bins, disc_strategy, log_of_target, test_run_flag=test_run_flag)
+            if disc_strategy == "top_k":
+                for k in [250, 500]:
+                    disc_strategy_run = f"top_{k}"
+                    one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, disc_strategy_run, log_of_target, test_run_flag=test_run_flag)
+            elif disc_strategy == "kmeans":
+                for n_bins in [2, 3, 4, 5]:
+                    disc_strategy_run = f"kmeans_{n_bins}"
+                    one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer,  disc_strategy_run, log_of_target, test_run_flag=test_run_flag)
 
             
             
