@@ -22,8 +22,7 @@ from vessel_proj.data import get_one_file_from_artifact, get_project_name, get_w
 import wandb
 from sklearn.inspection import permutation_importance
 
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import make_scorer
+from sklearn.metrics import make_scorer, plot_roc_curve
 from sklearn.model_selection import cross_val_score
 from sklearn.preprocessing import KBinsDiscretizer
 from sklearn.impute import SimpleImputer
@@ -50,8 +49,8 @@ if False:
     run = wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="classification_task", reinit=True, name="test_run", tags=["test_run"])
 
     test_run_flag=True
-    disc_strategy="top_100"
     disc_strategy="kmeans_3"
+    disc_strategy="top_100"
     log_of_target=False
 
 
@@ -111,13 +110,19 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, disc_
             target["continuous"] = np.log10(target["continuous"])
 
         if disc_strategy.startswith("top_"):
-            n_top = int(disc_strategy[4:])
+            n_top = int(disc_strategy.split("_")[-1])
             n_bins = 2
             target.sort_values(by="continuous", ascending=False, inplace=True)
             target["discrete"] = 0
             target["discrete"].iloc[:n_top] = 1
+            if len(disc_strategy.split("_")) == 3:
+                if disc_strategy.split("_")[1] == "bottom":
+                    #keep only the top and bottom k observations (hence 2k in total)
+                    inds_to_drop = target.index[n_top:-n_top]
+                    target = target.drop(inds_to_drop)
+                    X = X.drop(inds_to_drop)
         elif disc_strategy.startswith("kmeans_"):
-            n_bins = int(disc_strategy[7:]) 
+            n_bins = int(disc_strategy.split("_")[-1])
             target["discrete"] = KBinsDiscretizer(n_bins=n_bins, encode="ordinal", strategy="kmeans").fit_transform(target[["continuous"]])
         else:
             raise Exception()
@@ -138,21 +143,27 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, disc_
             "test_set_size": X_test.shape[0],
             })
 
-        score_funs = {
-            'accuracy': metrics.accuracy_score}
-
-        # run cross val on train set
-        scoring = {k: make_scorer(f) for k,f in score_funs.items()}
-        start_time = time.time()
-        score_res = sklearn.model_selection.cross_validate(model, X_train, y_train, cv=cv_n_folds, scoring=scoring, n_jobs=10)
-
-        wandb.log({f"cv_{k}": v  for k, v in score_res.items()})
-        wandb.log({f"avg_cv_accuracy": np.mean(score_res["test_accuracy"])})
+        score_funs = ['accuracy', 'f1_macro', 'precision_macro', 'recall_macro']
 
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
         labels = list(range(n_bins))
         wandb.sklearn.plot_confusion_matrix(y_test, y_pred, labels)
+
+        if n_bins == 2:
+            score_funs.append("roc_auc")
+            fig, ax = plt.subplots()
+            plot_roc_curve(model, X_test, y_test, ax=ax)
+            wandb.log({"ROC Curve": wandb.Image(fig)})
+
+        # run cross val on train set
+        start_time = time.time()
+        score_res = sklearn.model_selection.cross_validate(model, X_train, y_train, cv=cv_n_folds, scoring=score_funs, n_jobs=10)
+
+        wandb.log({f"cv_{k}": v  for k, v in score_res.items()})
+        wandb.log({f"avg_cv_accuracy": np.mean(score_res["test_accuracy"])})
+
+        
 
         # %% Permutation feature importance from sklearn
         start_time = time.time()
@@ -210,10 +221,15 @@ def main(test_run_flag=False, run_sage=False, n_sage_perm=1000000, cv_n_folds=5,
     for model in all_models:
         for yname in all_y_names:
 
-            if disc_strategy == "top_k":
-                for k in [250, 500]:
-                    disc_strategy_run = f"top_{k}"
+            if disc_strategy.startswith("top_"):
+                for k in [50, 100, 250, 500]:
+                    if disc_strategy == "top_k":
+                        disc_strategy_run = f"top_{k}"
+                    elif disc_strategy == "top_bottom_k":
+                        disc_strategy_run = f"top_bottom_{k}"
+
                     one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, disc_strategy_run, log_of_target, test_run_flag=test_run_flag)
+
             elif disc_strategy == "kmeans":
                 for n_bins in [2, 3, 4, 5]:
                     disc_strategy_run = f"kmeans_{n_bins}"
