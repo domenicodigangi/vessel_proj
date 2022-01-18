@@ -126,6 +126,8 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, disc_
             target["discrete"] = KBinsDiscretizer(n_bins=n_bins, encode="ordinal", strategy="kmeans").fit_transform(target[["continuous"]])
         else:
             raise Exception()
+
+        wandb.log({"n_bins": n_bins})
         
         fig, ax = plt.subplots()
         g=sns.boxplot(target["discrete"], target["continuous"], ax=ax)
@@ -161,8 +163,7 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, disc_
         score_res = sklearn.model_selection.cross_validate(model, X_train, y_train, cv=cv_n_folds, scoring=score_funs, n_jobs=10)
 
         wandb.log({f"cv_{k}": v  for k, v in score_res.items()})
-        wandb.log({f"avg_cv_accuracy": np.mean(score_res["test_accuracy"])})
-
+        wandb.log({f"avg_cv_{k}": np.mean(v)  for k, v in score_res.items()})
         
 
         # %% Permutation feature importance from sklearn
@@ -213,7 +214,7 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, disc_
 @arg("--cv_n_folds", help="N. Cross Val folds")
 @arg("--sage_imputer", help="compute and log sage feat importance")
 @arg("--disc_strategy", help="How are we going to define bins? top_100 (any number instead of 100), or kmeans https://scikit-learn.org/stable/modules/preprocessing.html#preprocessing-discretization")
-def main(test_run_flag=False, run_sage=False, n_sage_perm=1000000, cv_n_folds=5, sage_imputer="DefaultImputer", disc_strategy="kmeans", log_of_target=False, njobs=4):
+def main(test_run_flag=False, run_sage=True, n_sage_perm=1000000, cv_n_folds=5, sage_imputer="DefaultImputer", disc_strategy="kmeans", log_of_target=False, njobs=4):
 
     all_models = [RandomForestClassifier(random_state=0), XGBClassifier()]
     all_y_names = ["page_rank_bin", "page_rank_w_log_trips", "closeness_bin", "betweenness_bin", "avg_rank_centr"]
