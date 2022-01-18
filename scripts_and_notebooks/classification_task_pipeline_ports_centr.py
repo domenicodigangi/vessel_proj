@@ -199,6 +199,8 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, disc_
             fig = sage_values.plot(feature_names, return_fig=True)
             [l.set_fontsize(8) for l in fig.axes[0].get_yticklabels()]
 
+            wandb.log({f"sage_mean_{n}": v for n, v in zip(feature_names, sage_values.values) })
+            wandb.log({f"sage_std_{n}": v for n, v in zip(feature_names, sage_values.std) })
             wandb.log({"sage_importances_plot": wandb.Image(fig)})
 
             # Feature importance from SAGE
