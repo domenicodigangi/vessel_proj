@@ -6,7 +6,7 @@ import logging
 import wandb
 from pathlib import Path
 from types import SimpleNamespace
-
+from prefect import task
 
 
 logger = logging.getLogger()
@@ -107,7 +107,6 @@ def shaper_slow(df_visits, output_file=None):
                  'vesseltype':dfg.iloc[i].vesseltype,
                 })
 
-
     df_edges = pd.DataFrame(data = l)
     
     df_edges["duration_seconds"] = df_edges["duration"].dt.total_seconds()
@@ -118,8 +117,6 @@ def shaper_slow(df_visits, output_file=None):
             df_edges.to_csv(output_file)
          elif ".parquet" in str(output_file):
             df_edges.to_parquet(output_file)
-
-    
 
     return df_edges
 
@@ -149,6 +146,7 @@ def save_parquet_and_wandb_log_locally(run, df, name, fold):
     run.log_artifact(artifact)
     logger.info(f"Logged it as artifact")
 
+
 def get_latest_port_data(run=None):
     proj_name=get_project_name()
     if run is not None:
@@ -170,4 +168,6 @@ def get_latest_port_data(run=None):
 
     return {"centralities": df_centr, "features": df_feat}
 
-    
+@task
+def get_latest_port_data_task(run=None):
+    return get_latest_port_data(run=run)
