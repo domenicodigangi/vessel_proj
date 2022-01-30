@@ -34,49 +34,38 @@ from sklearn.preprocessing import StandardScaler
 import seaborn as sns
 sns.set_theme(style="darkgrid")
 
+from prefect import task, flow
 from joblib import Parallel, delayed
 
 logger = logging.getLogger(__file__)
 
-#%%
-from prefect import task, flow
 
 
-#%%
 
 
-#%% define variable for development
-if False:
-    yname = "page_rank_w_log_trips"
-    model = RandomForestClassifier(random_state=0)
-    run_sage = True
-    n_sage_perm = None
-    cv_n_folds = 5
-    sage_imputer = "DefaultImputer"
-    run = wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="classification_task", reinit=True, name="test_run", tags=["test_run"])
-
-    test_run_flag=True
-    disc_strategy="kmeans_3"
-    disc_strategy="top_100"
-    log_of_target=False
 
 #%%
 
 @task
-def prepare_target_and_features(data, yname, disc_strategy, log_of_target):
-    df_feat = data["features"]
+def add_avg_centr(data):
     df_centr = data["centralities"]
     #add avg of different measures
     scaler = StandardScaler()
     df = df_centr[["page_rank_bin", "page_rank_w_log_trips", "closeness_bin", "betweenness_bin"]]
     df_centr["avg_centr"] = scaler.fit_transform(df).mean(axis=1)
     df_centr["avg_rank_centr"] = df.rank().mean(axis=1)
-    df_merge = df_centr[yname].reset_index().merge(df_feat, how="left", left_on="index", right_on="INDEX_NO")
 
-    X = df_merge[df_feat.columns].drop(columns=["PORT_NAME", "REGION_NO"])
-
+    data["centralities"] = df_centr
     
-    feat_names_non_cat = ["TIDE_RANGE", "LATITUDE", "LONGITUDE"]
+    return data
+
+@task
+def encode_features(data, cols_to_drop=["PORT_NAME", "REGION_NO"],     feat_names_non_cat=["TIDE_RANGE", "LATITUDE", "LONGITUDE"]):
+
+    df_feat = data["features"]
+
+    X = df_feat.drop(columns=cols_to_drop)
+    
     feat_names = list(X.columns)
     feat_names_cat = [f for f in feat_names if f not in feat_names_non_cat]
 
@@ -89,9 +78,30 @@ def prepare_target_and_features(data, yname, disc_strategy, log_of_target):
         if col in feat_names_cat:
             X[col] = le.fit_transform(X[[col]])
 
+    data["features"] = X
+
+    return data
+
+@task
+def impute_missing(data):
+    X = data["features"]
+ 
     my_imputer = SimpleImputer()
     X_imputed = my_imputer.fit_transform(X)
     X = pd.DataFrame(data=X_imputed, columns=X.columns)
+
+    data["features"] = X
+
+    return data
+
+@task
+def select_and_discretize_target(data, yname, disc_strategy, log_of_target):
+    df_feat = data["features"]
+    df_centr = data["centralities"]
+
+    df_merge = df_centr[yname].reset_index().merge(df_feat, how="left", left_on="index", right_on="INDEX_NO")
+
+    X = df_merge[df_feat.columns]
 
     target = df_merge[[yname]].rename(columns={yname: "continuous"})
     if log_of_target:
@@ -130,7 +140,7 @@ def prepare_target_and_features(data, yname, disc_strategy, log_of_target):
     return X_y 
 
 @task
-def train_test_task(X_y):
+def split_X_y(X_y, train_or_test):
     X, y = X_y
     X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42, stratify=y)
     
@@ -139,13 +149,17 @@ def train_test_task(X_y):
         "test_set_size": X_test.shape[0],
         })
 
-    train_test_X_y = (X_train, X_test, y_train, y_test)
-
-    return train_test_X_y
+    if train_or_test == "train":
+        return (X_train, y_train)
+    elif train_or_test == "test":
+        return (X_test, y_test)
 
 @task
-def train_score_model(train_test_X_y, model):
-    (X_train, X_test, y_train, y_test) = train_test_X_y
+def train_score_model(train_X_y, test_X_y, modelname, cv_n_folds):
+
+    model = eval(modelname)
+    (X_train, y_train) = train_X_y
+    (X_test, y_test) = test_X_y
     
     n_bins = y_train.unique().shape[0]
 
@@ -186,11 +200,12 @@ def train_score_model(train_test_X_y, model):
     ax.set_xticklabels(feat_names)
     fig.tight_layout()
     wandb.log({"permutation_importances_plot": wandb.Image(fig)})
-
-@task
-def estimate_sage(train_test_X_y, model, sage_imputer):
     
-    (X_train, X_test, y_train, y_test) = train_test_X_y
+@task
+def estimate_sage(train_X_y, test_X_y, model, sage_imputer, n_sage_perm):
+    
+    (X_train, y_train) = train_X_y
+    (X_test, y_test) = test_X_y
     feat_names = list(X_train.columns)
     # experiment with sage, can be slow
 
@@ -235,18 +250,43 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, disc_
         logger.info(f"RUNNING {run_pars}")
  
         data = get_latest_port_data_task()
+
+        data = add_avg_centr(data)
+
+        data = encode_features(data)
+        
+        data = impute_missing(data)
  
-        prep_X_y = prepare_target_and_features(data, yname, disc_strategy, log_of_target)
+        prep_X_y = select_and_discretize_target(data, yname, disc_strategy, log_of_target)
 
-        train_test_X_y = train_test_task(prep_X_y)
+        train_X_y = split_X_y(prep_X_y, "train")
+        test_X_y = split_X_y(prep_X_y, "test")
 
-        train_score_model(train_test_X_y, model)
+        train_score_model(train_X_y, model, cv_n_folds)
 
-      
         if run_sage in ["True", "Y", "T", True]:
-            estimate_sage(train_test_X_y, model, sage_imputer)
+            estimate_sage(train_X_y, test_X_y, model, sage_imputer, n_sage_perm)
         
         logger.info(f"FINISHED {run_pars}")
+
+
+#%% define variable for development
+if False:
+    yname = "page_rank_w_log_trips"
+    modelname = "RandomForestClassifier(random_state=0)"
+    run_sage = True
+    n_sage_perm = None
+    cv_n_folds = 5
+    sage_imputer = "DefaultImputer"
+    run = wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="classification_task", reinit=True, name="test_run", tags=["test_run"])
+
+    test_run_flag=True
+    disc_strategy="kmeans_3"
+    disc_strategy="top_100"
+    log_of_target=False
+
+    one_run(modelname, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, disc_strategy, log_of_target, test_run_flag=False)
+
 
 #%%
 @arg("--test_run_flag", help="tag as test run")
@@ -255,16 +295,17 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, disc_
 @arg("--cv_n_folds", help="N. Cross Val folds")
 @arg("--sage_imputer", help="compute and log sage feat importance")
 @arg("--disc_strategy", help="How are we going to define bins? top_100 (any number instead of 100), or kmeans https://scikit-learn.org/stable/modules/preprocessing.html#preprocessing-discretization")
+@flow
 def main(test_run_flag=False, run_sage=True, n_sage_perm=1000000, cv_n_folds=5, sage_imputer="DefaultImputer", disc_strategy="kmeans", log_of_target=False, njobs=4):
 
-    all_models = [RandomForestClassifier(random_state=0), XGBClassifier()]
+    all_models = ["RandomForestClassifier(random_state=0)", "XGBClassifier()"]
     all_y_names = ["page_rank_bin", "page_rank_w_log_trips", "closeness_bin", "betweenness_bin", "avg_rank_centr"]
   
     for model in all_models:
         for yname in all_y_names:
 
             if disc_strategy.startswith("top_"):
-                for k in [50, 100, 250, 500]:
+                for k in [250, 500]:
                     if disc_strategy == "top_k":
                         disc_strategy_run = f"top_{k}"
                     elif disc_strategy == "top_bottom_k":
@@ -287,3 +328,5 @@ if __name__ == "__main__":
     
         
 
+
+# %%
