@@ -25,7 +25,8 @@ from sklearn.inspection import permutation_importance
 from sklearn.metrics import make_scorer, plot_roc_curve
 from sklearn.model_selection import cross_val_score
 from sklearn.preprocessing import KBinsDiscretizer
-from sklearn.impute import SimpleImputer
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer
 from xgboost import XGBClassifier
 import sage
 import argh
@@ -35,6 +36,7 @@ import seaborn as sns
 sns.set_theme(style="darkgrid")
 
 from prefect import task, flow
+from prefect.task_runners import DaskTaskRunner
 from joblib import Parallel, delayed
 
 logger = logging.getLogger(__file__)
@@ -83,10 +85,12 @@ def encode_features(data, cols_to_drop=["PORT_NAME", "REGION_NO"],     feat_name
     return data
 
 @task
-def impute_missing(data):
+def impute_missing(data, imputer_missing):
+
+    wandb.log({"imputer_missing": imputer_missing})
     X = data["features"]
  
-    my_imputer = SimpleImputer()
+    my_imputer = eval(imputer_missing) # SimpleImputer()
     X_imputed = my_imputer.fit_transform(X)
     X = pd.DataFrame(data=X_imputed, columns=X.columns)
 
@@ -209,10 +213,10 @@ def estimate_sage(train_X_y, test_X_y, model, sage_imputer, n_sage_perm):
     feat_names = list(X_train.columns)
     # experiment with sage, can be slow
 
-    model.fit(X_train, y_train)
+    model.fit(X_train.values, y_train.values)
     # Set up an imputer to handle missing features
     if sage_imputer == "MarginalImputer":
-        imputer = sage.MarginalImputer(model, X_train)
+        imputer = sage.MarginalImputer(model, X_train.values)
     elif sage_imputer == "DefaultImputer":
         imputer = sage.DefaultImputer(model, np.zeros(X_train.shape[1]))
 
@@ -235,7 +239,7 @@ def estimate_sage(train_X_y, test_X_y, model, sage_imputer, n_sage_perm):
 
 #%%
 @flow
-def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, disc_strategy, log_of_target: bool, test_run_flag=False):
+def one_run(model, yname, imputer_missing, run_sage, n_sage_perm, cv_n_folds, sage_imputer, disc_strategy, log_of_target: bool, test_run_flag=False):
     
     with wandb.init(project=get_project_name(), dir=get_wandb_root_path(), group="classification_task", reinit=True) as run:
         
@@ -255,7 +259,7 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, disc_
 
         data = encode_features(data)
         
-        data = impute_missing(data)
+        data = impute_missing(data, imputer_missing)
  
         prep_X_y = select_and_discretize_target(data, yname, disc_strategy, log_of_target)
 
@@ -295,28 +299,29 @@ if False:
 @arg("--cv_n_folds", help="N. Cross Val folds")
 @arg("--sage_imputer", help="compute and log sage feat importance")
 @arg("--disc_strategy", help="How are we going to define bins? top_100 (any number instead of 100), or kmeans https://scikit-learn.org/stable/modules/preprocessing.html#preprocessing-discretization")
-@flow
+@flow(task_runner=DaskTaskRunner)
 def main(test_run_flag=False, run_sage=True, n_sage_perm=1000000, cv_n_folds=5, sage_imputer="DefaultImputer", disc_strategy="kmeans", log_of_target=False, njobs=4):
 
     all_models = ["RandomForestClassifier(random_state=0)", "XGBClassifier()"]
     all_y_names = ["page_rank_bin", "page_rank_w_log_trips", "closeness_bin", "betweenness_bin", "avg_rank_centr"]
-  
+    all_imputer_names = ["SimpleImputer()", "KNNImputer()", "IterativeImputer()"]
     for model in all_models:
         for yname in all_y_names:
+            for imputer_missing in all_imputer_names:
 
-            if disc_strategy.startswith("top_"):
-                for k in [250, 500]:
-                    if disc_strategy == "top_k":
-                        disc_strategy_run = f"top_{k}"
-                    elif disc_strategy == "top_bottom_k":
-                        disc_strategy_run = f"top_bottom_{k}"
+                if disc_strategy.startswith("top_"):
+                    for k in [250, 500]:
+                        if disc_strategy == "top_k":
+                            disc_strategy_run = f"top_{k}"
+                        elif disc_strategy == "top_bottom_k":
+                            disc_strategy_run = f"top_bottom_{k}"
 
-                    one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, disc_strategy_run, log_of_target, test_run_flag=test_run_flag)
+                        one_run(model, yname, imputer_missing, run_sage, n_sage_perm, cv_n_folds, sage_imputer, disc_strategy_run, log_of_target, test_run_flag=test_run_flag)
 
-            elif disc_strategy == "kmeans":
-                for n_bins in [2, 3, 4, 5]:
-                    disc_strategy_run = f"kmeans_{n_bins}"
-                    one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer,  disc_strategy_run, log_of_target, test_run_flag=test_run_flag)
+                elif disc_strategy == "kmeans":
+                    for n_bins in [2, 3, 4, 5]:
+                        disc_strategy_run = f"kmeans_{n_bins}"
+                        one_run(model, yname, imputer_missing, run_sage, n_sage_perm, cv_n_folds, sage_imputer,  disc_strategy_run, log_of_target, test_run_flag=test_run_flag)
 
             
             
