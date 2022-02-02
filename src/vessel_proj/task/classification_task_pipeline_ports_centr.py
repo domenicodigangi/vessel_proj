@@ -446,13 +446,13 @@ def main(
     n_sage_perm=1000000,
     cv_n_folds=5,
     sage_imputer="DefaultImputer",
-    disc_strategy="kmeans",
+    disc_strategy="top_k",
     log_of_target=False,
     miss_threshold=0.5,
     njobs=4,
 ):
 
-    all_models = ["RandomForestClassifier(random_state=0)"]  # , "XGBClassifier()"]
+    all_model_names = ["RandomForestClassifier(random_state=0)"]  # , "XGBClassifier()"]
     all_y_names = [
         "page_rank_bin",
         "page_rank_w_log_trips",
@@ -461,7 +461,7 @@ def main(
         "avg_rank_centr",
     ]
     all_imputer_names = ["SimpleImputer()", "KNNImputer()", "IterativeImputer()"]
-    for model in all_models:
+    for model_name in all_model_names:
         for yname in all_y_names:
             for imputer_missing in all_imputer_names:
 
@@ -473,7 +473,7 @@ def main(
                             disc_strategy_run = f"top_bottom_{k}"
 
                         one_run(
-                            model,
+                            model_name,
                             yname,
                             imputer_missing,
                             run_sage,
@@ -490,16 +490,16 @@ def main(
                     for n_bins in [2, 3, 4, 5]:
                         disc_strategy_run = f"kmeans_{n_bins}"
                         one_run(
-                            model,
+                            model_name,
                             yname,
                             imputer_missing,
                             run_sage,
                             n_sage_perm,
                             cv_n_folds,
                             sage_imputer,
-                            disc_strategy_run,
-                            log_of_target,
-                            test_run_flag=test_run_flag,
+                            disc_strategy,
+                            miss_threshold,
+                            log_of_target
                         )
 
 
