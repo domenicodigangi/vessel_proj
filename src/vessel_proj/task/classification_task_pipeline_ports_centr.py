@@ -428,7 +428,6 @@ if False:
     )
     
 #%%
-@arg("--test_run_flag", help="tag as test run")
 @arg("--run_sage", help="compute and log sage feat importance")
 @arg(
     "--n_sage_perm",
@@ -441,7 +440,6 @@ if False:
     help="How are we going to define bins? top_100 (any number instead of 100), or kmeans https://scikit-learn.org/stable/modules/preprocessing.html#preprocessing-discretization",
 )
 def main(
-    test_run_flag=False,
     run_sage=True,
     n_sage_perm=1000000,
     cv_n_folds=5,
@@ -449,7 +447,6 @@ def main(
     disc_strategy="top_k",
     log_of_target=False,
     miss_threshold=0.5,
-    njobs=4,
 ):
 
     all_model_names = ["RandomForestClassifier(random_state=0)"]  # , "XGBClassifier()"]
@@ -481,9 +478,8 @@ def main(
                             cv_n_folds,
                             sage_imputer,
                             disc_strategy_run,
-                            log_of_target,
                             miss_threshold,
-                            test_run_flag=test_run_flag,
+                            log_of_target
                         )
 
                 elif disc_strategy == "kmeans":
@@ -497,7 +493,7 @@ def main(
                             n_sage_perm,
                             cv_n_folds,
                             sage_imputer,
-                            disc_strategy,
+                            disc_strategy_run,
                             miss_threshold,
                             log_of_target
                         )
