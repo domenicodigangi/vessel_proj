@@ -58,7 +58,8 @@ def logwandb(*args, **kwargs):
 
 
 @task
-def add_avg_centr(data):
+def add_avg_centr(data_in):
+    data = {k: v for k, v in data_in.items()}
     df_centr = data["centralities"]
     # add avg of different measures
     scaler = StandardScaler()
@@ -75,11 +76,13 @@ def add_avg_centr(data):
 
 @task
 def encode_features(
-    data,
+    data_in,
     feat_names_non_cat,
     cols_to_drop,
 ):
 
+    data = {k: v for k, v in data_in.items()}
+    
     df = data["features"]
 
     X = df.drop(columns=cols_to_drop)
@@ -99,16 +102,15 @@ def encode_features(
             X[col] = le.fit_transform(X[[col]])
 
     data["features"] = X
-
     return data
 
 
 @task
 def drop_missing_cols(
-    data,
+    data_in,
     threshold=0.5,
 ):
-
+    data = {k: v for k, v in data_in.items()}
     df = data["features"]
 
     fract_miss = df.isnull().mean().sort_values(ascending=False)
@@ -121,7 +123,8 @@ def drop_missing_cols(
 
 
 @task
-def select_and_discretize_target(data, yname, disc_strategy, log_of_target):
+def select_and_discretize_target(data_in, yname, disc_strategy, log_of_target):
+    data = {k: v for k, v in data_in.items()}
     df_feat = data["features"]
     df_centr = data["centralities"]
 
@@ -192,8 +195,8 @@ def split_X_y(X_y):
 
 
 @task
-def impute_missing(train_test_X_y, imputer_missing, feat_names_non_cat):
-
+def impute_missing(train_test_X_y_in, imputer_missing, feat_names_non_cat):
+    train_test_X_y = {k: copy.deepcopy(v) for k, v in train_test_X_y_in.items()}
     try:
         wandb.log({"imputer_missing": imputer_missing})
     except:
@@ -231,7 +234,9 @@ def impute_missing(train_test_X_y, imputer_missing, feat_names_non_cat):
 
 
 @task
-def train_score_model(train_test_X_y, model_name, cv_n_folds):
+def train_score_model(train_test_X_y_in, model_name, cv_n_folds):
+    train_test_X_y = {k: copy.deepcopy(v) for k, v in train_test_X_y_in.items()}
+
 
     model = eval(model_name)
     (X_train, y_train) = train_test_X_y["train"]
@@ -282,7 +287,8 @@ def train_score_model(train_test_X_y, model_name, cv_n_folds):
 
 
 @task
-def estimate_sage(train_test_X_y, model_name, sage_imputer, n_sage_perm):
+def estimate_sage(train_test_X_y_in, model_name, sage_imputer, n_sage_perm):
+    train_test_X_y = {k: copy.deepcopy(v) for k, v in train_test_X_y_in.items()}
 
     model = eval(model_name)
     (X_train, y_train) = train_test_X_y["train"]
