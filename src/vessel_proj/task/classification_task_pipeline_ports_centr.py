@@ -463,7 +463,7 @@ def main(
             for imputer_missing in all_imputer_names:
 
                 if disc_strategy.startswith("top_"):
-                    for k in [250, 500]:
+                    for k in [182, 363, 544]:
                         if disc_strategy == "top_k":
                             disc_strategy_run = f"top_{k}"
                         elif disc_strategy == "top_bottom_k":
