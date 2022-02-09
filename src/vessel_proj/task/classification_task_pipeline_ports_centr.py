@@ -30,6 +30,7 @@ from sklearn.inspection import permutation_importance
 
 from sklearn.metrics import make_scorer, plot_roc_curve
 from sklearn.preprocessing import KBinsDiscretizer
+from sklearn.experimental import enable_iterative_imputer 
 from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
@@ -380,7 +381,7 @@ def one_run(
 
         train_test_X_y = split_X_y.fn(prep_X_y)
 
-        data = impute_missing.fn(train_test_X_y, imputer_missing, feat_names_non_cat)
+        train_test_X_y = impute_missing.fn(train_test_X_y, imputer_missing, feat_names_non_cat)
 
         train_score_model.fn(train_test_X_y, model_name, cv_n_folds)
 
@@ -392,6 +393,8 @@ def one_run(
 
 #%% define variable for development
 if False:
+    feat_names_non_cat=["TIDE_RANGE", "LATITUDE", "LONGITUDE"]
+    cols_to_drop=["PORT_NAME", "REGION_NO", "PUB"]
     yname = "page_rank_w_log_trips"
     model_name = "RandomForestClassifier(random_state=0)"
     run_sage = True
@@ -439,7 +442,7 @@ if False:
 @arg("--sage_imputer", help="compute and log sage feat importance")
 @arg(
     "--disc_strategy",
-    help="How are we going to define bins? top_100 (any number instead of 100), or kmeans https://scikit-learn.org/stable/modules/preprocessing.html#preprocessing-discretization",
+    help="How are we going to define bins? top_k% (any number instead of 100), or kmeans https://scikit-learn.org/stable/modules/preprocessing.html#preprocessing-discretization",
 )
 def main(
     run_sage=True,
