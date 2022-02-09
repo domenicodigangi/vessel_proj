@@ -16,7 +16,7 @@ get_wandb_root_path()
 name = "edge_list:latest"
 art_edge = get_one_file_from_artifact('edge_list:latest')
 
-df_edges = read_edge_list(art_edge.filepath)
+df_edges = read_edge_list(art_edge.artifact)
 df_edges.dtypes   
 
 #%% Check for weird links

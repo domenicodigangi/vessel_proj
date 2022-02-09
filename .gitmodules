@@ -1,0 +1,3 @@
+[submodule "src/external/TitanicKaggle"]
+	path = src/external/TitanicKaggle
+	url = https://github.com/domenicodigangi/TitanicKaggle.git
