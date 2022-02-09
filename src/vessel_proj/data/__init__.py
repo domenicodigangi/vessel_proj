@@ -134,7 +134,7 @@ def set_types_edge_list(df_edges):
     return df_edges
 
 
-def save_parquet_and_wandb_log_locally(run, df, name, fold):
+def save_parquet_and_wandb_log(df, name, fold, run=None, local_only=False, project=None):
     
     # save locally and log it as local artifact, visible in wandb
     filepath = get_data_path() / fold / f"{name}.parquet"
@@ -142,8 +142,17 @@ def save_parquet_and_wandb_log_locally(run, df, name, fold):
     df.to_parquet(filepath)
     # save locally and log it as (local) artifact
     artifact = wandb.Artifact(name, type='dataset')
-    artifact.add_reference('file:///' + str(filepath))
-    run.log_artifact(artifact)
+    
+    if run is None:
+        wandb.init(project=project, reinit=True)
+        run = wandb
+        
+    if local_only:
+        artifact.add_reference('file:///' + str(filepath))
+    else:
+        run.log_artifact(str(filepath), name=name, type='dataset') 
+
+
     logger.info(f"Logged it as artifact")
 
 
