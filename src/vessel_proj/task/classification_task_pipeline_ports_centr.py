@@ -30,7 +30,7 @@ from sklearn.inspection import permutation_importance
 
 from sklearn.metrics import make_scorer, plot_roc_curve
 from sklearn.preprocessing import KBinsDiscretizer
-from sklearn.experimental import enable_iterative_imputer 
+from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
@@ -77,13 +77,11 @@ def add_avg_centr(data_in):
 
 @task
 def encode_features(
-    data_in,
-    feat_names_non_cat,
-    cols_to_drop,
+    data_in, feat_names_non_cat, cols_to_drop,
 ):
 
     data = {k: v for k, v in data_in.items()}
-    
+
     df = data["features"]
 
     X = df.drop(columns=cols_to_drop)
@@ -108,8 +106,7 @@ def encode_features(
 
 @task
 def drop_missing_cols(
-    data_in,
-    threshold=0.5,
+    data_in, threshold=0.5,
 ):
     data = {k: v for k, v in data_in.items()}
     df = data["features"]
@@ -186,10 +183,7 @@ def split_X_y(X_y):
     )
 
     logwandb(
-        {
-            "train_set_size": X_train.shape[0],
-            "test_set_size": X_test.shape[0],
-        }
+        {"train_set_size": X_train.shape[0], "test_set_size": X_test.shape[0],}
     )
 
     return {"train": (X_train, y_train), "test": (X_test, y_test)}
@@ -237,7 +231,6 @@ def impute_missing(train_test_X_y_in, imputer_missing, feat_names_non_cat):
 @task
 def train_score_model(train_test_X_y_in, model_name, cv_n_folds):
     train_test_X_y = {k: copy.deepcopy(v) for k, v in train_test_X_y_in.items()}
-
 
     model = eval(model_name)
     (X_train, y_train) = train_test_X_y["train"]
@@ -338,7 +331,7 @@ def one_run(
     log_of_target: bool,
     feat_names_non_cat=["TIDE_RANGE", "LATITUDE", "LONGITUDE"],
     cols_to_drop=["PORT_NAME", "REGION_NO", "PUB"],
-    test_run_flag=False
+    test_run_flag=False,
 ):
 
     with wandb.init(
@@ -381,7 +374,9 @@ def one_run(
 
         train_test_X_y = split_X_y.fn(prep_X_y)
 
-        train_test_X_y = impute_missing.fn(train_test_X_y, imputer_missing, feat_names_non_cat)
+        train_test_X_y = impute_missing.fn(
+            train_test_X_y, imputer_missing, feat_names_non_cat
+        )
 
         train_score_model.fn(train_test_X_y, model_name, cv_n_folds)
 
@@ -393,8 +388,8 @@ def one_run(
 
 #%% define variable for development
 if False:
-    feat_names_non_cat=["TIDE_RANGE", "LATITUDE", "LONGITUDE"]
-    cols_to_drop=["PORT_NAME", "REGION_NO", "PUB"]
+    feat_names_non_cat = ["TIDE_RANGE", "LATITUDE", "LONGITUDE"]
+    cols_to_drop = ["PORT_NAME", "REGION_NO", "PUB"]
     yname = "page_rank_w_log_trips"
     model_name = "RandomForestClassifier(random_state=0)"
     run_sage = True
@@ -429,9 +424,9 @@ if False:
         log_of_target,
         feat_names_non_cat=["TIDE_RANGE", "LATITUDE", "LONGITUDE"],
         cols_to_drop=["PORT_NAME", "REGION_NO", "PUB"],
-        test_run_flag=False
+        test_run_flag=False,
     )
-    
+
 #%%
 @arg("--run_sage", help="compute and log sage feat importance")
 @arg(
@@ -484,7 +479,7 @@ def main(
                             sage_imputer,
                             disc_strategy_run,
                             miss_threshold,
-                            log_of_target
+                            log_of_target,
                         )
 
                 elif disc_strategy == "kmeans":
@@ -500,7 +495,7 @@ def main(
                             sage_imputer,
                             disc_strategy_run,
                             miss_threshold,
-                            log_of_target
+                            log_of_target,
                         )
 
 
