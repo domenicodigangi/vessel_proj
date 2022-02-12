@@ -70,6 +70,7 @@ def clean_group_edges(df_edges):
 
     return dfg_edges
 
+
 def clean_edges(df_edges: pd.DataFrame, min_dur_secs: int) -> pd.DataFrame:
     """
     Remove weird links
