@@ -6,7 +6,7 @@ import networkx as nx
 from matplotlib import pyplot as plt
 
 from pathlib import Path
-from vessel_proj.data import (
+from vessel_proj.preprocess_data import (
     get_one_file_from_artifact,
     get_wandb_root_path, 
     get_project_name
@@ -27,7 +27,11 @@ dfg_edges
 
 #%%
 import torch
-from torch_geometric.data import Data
+import torch_geometric as pyg
 
-edge_index = torch.tensor([[0, 1, 1, 2],
-                           [1, 0, 2, 1]], dtype=torch.long)
+
+edge_index = torch.tensor(dfg_edges[["start_port", "end_port"]].values.astype(int)).transpose(0,1)
+
+g = pyg.data.Data(edge_index=edge_index, edge_attr=dfg_edges[["duration_avg_days", "trips_count", "vesseltype_count"]])
+
+
