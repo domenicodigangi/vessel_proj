@@ -17,7 +17,7 @@ from sklearn.utils.class_weight import compute_class_weight
 from sklearn.exceptions import ConvergenceWarning
 import warnings
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
-from vessel_proj.data import get_one_file_from_artifact, get_project_name, get_wandb_root_path
+from vessel_proj.preprocess_data import get_one_file_from_artifact, get_project_name, get_wandb_root_path
 import wandb
 from sklearn.inspection import permutation_importance
 

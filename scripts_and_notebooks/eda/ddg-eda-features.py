@@ -9,7 +9,7 @@ from sklearn.exceptions import ConvergenceWarning
 import warnings
 
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
-from vessel_proj.data import get_latest_port_data
+from vessel_proj.preprocess_data import get_latest_port_data
 import seaborn as sns
 sns.set_theme(style="darkgrid")
 

@@ -15,7 +15,7 @@ import warnings
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
 from sklearn.metrics import make_scorer
 from xgboost import XGBRegressor
-from vessel_proj.data import get_latest_port_data, get_project_name, save_parquet_and_wandb_log, get_project_name
+from vessel_proj.preprocess_data import get_latest_port_data, get_project_name, save_parquet_and_wandb_log, get_project_name
 from vessel_proj.task.classification_task_pipeline_ports_centr import add_avg_centr
 from sklearn.cluster import KMeans
 import seaborn as sns

@@ -1,7 +1,7 @@
 #%%
 import pandas as pd 
 
-from vessel_proj.data import get_data_path, get_project_root
+from vessel_proj.preprocess_data import get_data_path, get_project_root
 
 
 #%%

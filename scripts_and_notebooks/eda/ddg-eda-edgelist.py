@@ -7,7 +7,7 @@ import networkx as nx
 from matplotlib import pyplot as plt
 from wandb.util import artifact_to_json
 
-from vessel_proj.data import get_one_file_from_artifact, read_edge_list, get_wandb_root_path
+from vessel_proj.preprocess_data import get_one_file_from_artifact, read_edge_list, get_wandb_root_path
 
 get_wandb_root_path()
 

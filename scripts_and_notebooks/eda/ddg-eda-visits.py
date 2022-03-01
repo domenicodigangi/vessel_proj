@@ -5,11 +5,11 @@ from matplotlib import pyplot as plt
 import logging
 from pathlib import Path
 import time
-from vessel_proj.data import get_one_file_from_artifact, get_project_name, get_wandb_root_path
+from vessel_proj.preprocess_data import get_one_file_from_artifact, get_project_name, get_wandb_root_path
 import wandb
 import seaborn as sns
 sns.set_theme(style="darkgrid")
-from vessel_proj.data import get_latest_port_data
+from vessel_proj.preprocess_data import get_latest_port_data
 import plotly.express as px
 
 #%% get data from artifacts
