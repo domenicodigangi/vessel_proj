@@ -2,12 +2,11 @@
 import pandas as pd
 import numpy as np
 import networkx as nx
-import wandb
 from pathlib import Path
 from vessel_proj.preprocess_data import get_data_path, set_types_edge_list, get_wandb_root_path, get_project_name
 from prefect import task
 
-import argh
+
 import logging
 
 logger = logging.getLogger("root")
@@ -73,7 +72,3 @@ def main(min_dur_secs=300):
 
     df_edges_per_vesseltype.to_parquet(save_path / "edge_list_aggregated.parquet")
     pd.read_parquet(save_path / "edge_list_aggregated.parquet")
-
-if __name__ == "__main__":
-    argh.dispatch_command(main.fn)
-

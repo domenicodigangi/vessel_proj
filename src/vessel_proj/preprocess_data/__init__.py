@@ -75,9 +75,9 @@ def get_one_file_from_artifact(name, run=None, type=None):
     return out
 
 def shaper_slow(df_visits, output_file=None):
-    """ Convert df of time stamped vessel visits to ports to links, using a for loop over the groups of visits for each vessel
+    """
+     Convert df of time stamped vessel visits to ports to links, using a for loop over the groups of visits for each vessel
 
-    
     """
         
     df_visits['start'] = pd.to_datetime(df_visits['start']) 
@@ -103,6 +103,7 @@ def shaper_slow(df_visits, output_file=None):
                  'uid':dfg.iloc[i].uid,
                  ##'cargo':dfg.iloc[i].cargo,
                  'vesseltype':dfg.iloc[i].vesseltype,
+                 'vessel_category':dfg.iloc[i].vessel_category,
                 })
 
     df_edges = pd.DataFrame(data = l)
@@ -121,6 +122,7 @@ def shaper_slow(df_visits, output_file=None):
 def set_types_edge_list(df_edges):
     df_edges["duration_days"] = df_edges["duration_seconds"]/(60*60*24)
     df_edges["vesseltype"] = df_edges["vesseltype"].astype('category')
+    df_edges["vessel_category"] = df_edges["vessel_category"].astype('category')
     df_edges["start_port"] = df_edges["start_port"].astype('category')
     df_edges["end_port"] =df_edges["end_port"].astype(df_edges["start_port"].dtype)
     df_edges["start_port_name"] =df_edges["start_port_name"].astype('category')

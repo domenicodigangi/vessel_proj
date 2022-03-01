@@ -18,7 +18,7 @@ from sklearn.exceptions import ConvergenceWarning
 import warnings
 
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
-from vessel_proj.data import (
+from vessel_proj.preprocess_data import (
     get_project_name,
     get_wandb_root_path,
     get_latest_port_data_task,
