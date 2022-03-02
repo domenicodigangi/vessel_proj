@@ -117,13 +117,13 @@ def aggregated_graph_from_edge_list(df_edges, min_dur_secs=300):
 @flow
 def main():
 
-    df_visits = load_visits.fn()
+    df_visits = load_visits()
 
-    df_visits_cleaned = clean_visits.fn(df_visits)
+    df_visits_cleaned = clean_visits(df_visits)
 
-    df_edges = create_and_log_edge_list_from_visits.fn(df_visits_cleaned)
+    df_edges = create_and_log_edge_list_from_visits(df_visits_cleaned)
 
-    aggregated_graph_from_edge_list.fn(df_edges)
+    aggregated_graph_from_edge_list(df_edges)
     
 if __name__ == '__main__':
     main()
