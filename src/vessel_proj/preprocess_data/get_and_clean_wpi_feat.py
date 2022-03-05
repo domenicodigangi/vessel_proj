@@ -9,6 +9,7 @@ from prefect import task
 import requests
 import zipfile
 
+
 # %%
 
    
@@ -39,7 +40,7 @@ def clean_ports_info(df_ports):
     df_ports.describe().transpose()
     df_ports.describe(include = ["object"]).transpose()
 
-    col_to_drop = ["CHART", "geometry", "LAT_DEG", "LAT_MIN", "LONG_DEG", "LONG_MIN", "LAT_HEMI", "LONG_HEMI"]
+    col_to_drop = ["CHART", "LAT_DEG", "LAT_MIN", "LONG_DEG", "LONG_MIN", "LAT_HEMI", "LONG_HEMI"]
 
     col_single_val = df_ports.columns[df_ports.apply(lambda x: pd.unique(x).shape[0]) == 1].values.tolist()
     print(col_single_val)
@@ -66,18 +67,19 @@ def clean_ports_info(df_ports):
                 plt.show()
 
     return df_ports
-
+#%%
 
 @task
 def main():
     """
     load world port index info, cast types, drop some columns and store as parquet
     """
-    data_path = get_data_path() / "interim"
-    df = pd.read_parquet(data_path /  "wpi_2019.parquet")
+    load_path = get_data_path() / "interim"
+    df = pd.read_parquet(load_path /  "wpi_2019.parquet")
 
     df_clean = clean_ports_info(df)
-    df_clean.to_parquet(data_path / 'ports_features.parquet')
+    save_path = get_data_path() / "processed"
+    df_clean.to_parquet(save_path / 'ports_features.parquet')
 
 if __name__ == "__main__":
     main()

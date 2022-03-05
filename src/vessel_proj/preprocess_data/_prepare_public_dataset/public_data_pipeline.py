@@ -39,7 +39,7 @@ def clean_visits(df, min_dur_sec=300, types_to_drop = ["fishing", "tug tow"]):
 def create_and_save_edge_list_from_visits(df_visits, nrows=None):
 
 
-    output_file = get_data_path() / "interim" /'edge_list.parquet'
+    output_file = get_data_path() / "raw" /'edge_list.parquet'
 
     if nrows is not None:
         df_visits = df_visits[:nrows]            
