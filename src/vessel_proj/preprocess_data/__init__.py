@@ -119,3 +119,18 @@ def shaper_slow(df_visits, output_file=None):
 
     return df_edges
 
+
+def set_types_edge_list(df_edges):
+    df_edges["duration_days"] = df_edges["duration_seconds"]/(60*60*24)
+    df_edges["vesseltype"] = df_edges["vesseltype"].astype('category')
+    df_edges["vessel_category"] = df_edges["vessel_category"].astype('category')
+    df_edges["start_port"] = df_edges["start_port"].astype('category')
+    df_edges["end_port"] =df_edges["end_port"].astype(df_edges["start_port"].dtype)
+    df_edges["start_port_name"] =df_edges["start_port_name"].astype('category')
+    df_edges["end_port_name"] =df_edges["end_port_name"].astype(df_edges["start_port_name"].dtype)
+    df_edges["start_region"] =df_edges["start_region"].astype('category')
+    df_edges["end_region"] =df_edges["end_region"].astype(df_edges["end_region"].dtype)
+    df_edges["mmsi"] = df_edges["mmsi"].astype('category')
+    df_edges["uid"] = df_edges["uid"].astype('category')
+    return df_edges
+

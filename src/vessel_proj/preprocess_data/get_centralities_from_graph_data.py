@@ -6,6 +6,7 @@ import wandb
 from pathlib import Path
 from vessel_proj.preprocess_data import set_types_edge_list, get_wandb_root_path, get_project_name
 from prefect import task
+from . import get_data_path
 
 import argh
 import logging
@@ -19,15 +20,18 @@ from prefect import task, flow
 # %%
 
 
-if False:
-    run = wandb.init(
-        project=get_project_name(),
-        name="create_centrality_data",
-        dir=get_wandb_root_path(),
-        group="data_preprocessing",
-        reinit=True,
-    )
-    min_dur_secs = 300
+def download_graph_data_zenodo() -> pd.DataFrame:
+    raise NotImplementedError
+
+def get_graph_data() -> pd.DataFrame:
+    graph_data_file = get_data_path() / "interim" / "edge_list_aggregated.parquet"
+
+    try:
+        df = pd.read_parquet(graph_data_file)
+    except:
+        df = download_graph_data_zenodo()
+
+    return df
 
 
 def clean_group_edges(df_edges, min_dur_secs=300):
@@ -170,13 +174,6 @@ def get_centralities(G) -> pd.DataFrame:
 @task
 def main(min_dur_secs=300):
     """load list of voyages (edge_list), clean the graph, compute a set of centralities and log them as parquet"""
-    with wandb.init(
-        project=get_project_name(),
-        name="create_centrality_data",
-        dir=get_wandb_root_path(),
-        group="data_preprocessing",
-        reinit=True,
-    ) as run:
 
         #%% get data from artifacts
         art_edge = run.use_artifact(f"{get_project_name()}/edge_list:latest")

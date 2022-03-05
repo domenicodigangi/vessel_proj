@@ -36,7 +36,7 @@ def clean_visits(df, min_dur_sec=300, types_to_drop = ["fishing", "tug tow"]):
 
 
 @task
-def create_and_log_edge_list_from_visits(df_visits, nrows=None):
+def create_and_save_edge_list_from_visits(df_visits, nrows=None):
 
 
     output_file = get_data_path() / "interim" /'edge_list.parquet'
@@ -51,7 +51,8 @@ def create_and_log_edge_list_from_visits(df_visits, nrows=None):
     df_edges = shaper_slow(df_visits, output_file=output_file)
 
     return df_edges
-  
+
+
 @task
 def load_visits():
     dir = get_data_path() / "raw" 
@@ -83,18 +84,17 @@ def clean_edges(df_edges: pd.DataFrame, min_dur_secs=300) -> pd.DataFrame:
     return df_edges
 
 
-def group_edges_per_vesseltype(df_edges: pd.DataFrame) -> pd.DataFrame:
+def group_edges_per_vessel_category(df_edges: pd.DataFrame) -> pd.DataFrame:
     #%% group trips
     # count number of connections between each pairs of ports, avg duration, number of distinct vessels and types of vessels
 
     count_unique = lambda x: np.unique(x).shape[0]
-    df_edges_per_vesseltype = df_edges.groupby(["start_port", "end_port", "vesseltype"], observed=True).agg(
-        duration_avg_days=("duration_days", np.mean),
+    df_edges_per_vessel_category = df_edges.groupby(["start_port", "end_port", "vessel_category"], observed=True).agg(
+        # duration_avg_days=("duration_days", np.mean),
         trips_count=("uid", count_unique),
     )
 
-    return df_edges_per_vesseltype
-
+    return df_edges_per_vessel_category
 
 @task
 def aggregated_graph_from_edge_list(df_edges, min_dur_secs=300):
@@ -104,15 +104,16 @@ def aggregated_graph_from_edge_list(df_edges, min_dur_secs=300):
 
     df_edges = set_types_edge_list(df_edges)
 
-    df_edges_clean = clean_edges(df_edges, min_dur_secs=min_dur_secs)
+    df_edges = clean_edges(df_edges, min_dur_secs=min_dur_secs)
 
-    df_edges_per_vesseltype = group_edges_per_vesseltype(df_edges_clean)
+    df_edges_per_vessel_category = group_edges_per_vessel_category(df_edges)
 
     save_path = get_data_path() / "interim"
 
-    df_edges_per_vesseltype.to_parquet(save_path / "edge_list_aggregated.parquet")
-    pd.read_parquet(save_path / "edge_list_aggregated.parquet")
+    df_edges_per_vessel_category.to_parquet(save_path / "edge_list_aggregated.parquet")
+    # pd.read_parquet(save_path / "edge_list_aggregated.parquet")
 
+    return df_edges_per_vessel_category
 #%%
 @flow
 def main():
@@ -121,9 +122,9 @@ def main():
 
     df_visits_cleaned = clean_visits(df_visits)
 
-    df_edges = create_and_log_edge_list_from_visits(df_visits_cleaned)
+    df_edges = create_and_save_edge_list_from_visits(df_visits_cleaned)
 
-    aggregated_graph_from_edge_list(df_edges)
+    df_edges_per_vessel_category = aggregated_graph_from_edge_list(df_edges)
     
 if __name__ == '__main__':
     main()
