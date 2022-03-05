@@ -17,7 +17,7 @@ from sklearn.utils.class_weight import compute_class_weight
 from sklearn.exceptions import ConvergenceWarning
 import warnings
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
-from vessel_proj.preprocess_data import get_one_file_from_artifact, get_project_name, get_wandb_root_path
+from vessel_proj.preprocess_data import get_data_path, get_one_file_from_artifact, get_project_name, get_wandb_root_path
 import wandb
 from sklearn.inspection import permutation_importance
 
@@ -55,9 +55,11 @@ def one_run(model, yname, run_sage, n_sage_perm, cv_n_folds, sage_imputer, test_
 
         wandb.log({"model": model_name, "var_predicted": yname, "cv_n_folds": cv_n_folds})
 
-        df_ports = pd.read_parquet(get_one_file_from_artifact('ports_features:latest').filepath)
+        load_fold = get_data_path() / "processed"
 
-        df_centr = pd.read_parquet(get_one_file_from_artifact('centr_ports:latest').filepath)
+        df_ports = pd.read_parquet(load_fold / "ports_features.parquet")
+
+        df_centr = pd.read_parquet(load_fold / "centralities-ports.parquet")
 
         # add log of centralities to the list of centralities
         for c in df_centr.columns:
