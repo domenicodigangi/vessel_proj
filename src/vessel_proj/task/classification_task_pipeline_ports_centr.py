@@ -167,7 +167,7 @@ def select_and_discretize_target(data_in, yname, disc_strategy, log_of_target):
         f"n obs {int(k)}: {v}" for k, v in target["discrete"].value_counts().iteritems()
     ]
     plt.legend(nobs)
-    wandb.log({"boxplots_clusters": wandb.Image(fig)})
+    logwandb({"boxplots_clusters": wandb.Image(fig)})
     y = target["discrete"]
 
     X_y = (X, y)
@@ -194,7 +194,7 @@ def impute_missing(train_test_X_y_in, imputer_missing, feat_names_non_cat):
     train_test_X_y = {k: copy.deepcopy(v)
                       for k, v in train_test_X_y_in.items()}
     try:
-        wandb.log({"imputer_missing": imputer_missing})
+        logwandb({"imputer_missing": imputer_missing})
     except:
         pass
 
@@ -254,7 +254,7 @@ def train_score_model(train_test_X_y_in, model_name, cv_n_folds):
         score_funs.append("roc_auc")
         fig, ax = plt.subplots()
         plot_roc_curve(model, X_test, y_test, ax=ax)
-        wandb.log({"ROC Curve": wandb.Image(fig)})
+        logwandb({"ROC Curve": wandb.Image(fig)})
 
     # run cross val on train set
     start_time = time.time()
@@ -262,8 +262,8 @@ def train_score_model(train_test_X_y_in, model_name, cv_n_folds):
         model, X_train, y_train, cv=cv_n_folds, scoring=score_funs, n_jobs=10
     )
 
-    wandb.log({f"cv_{k}": v for k, v in score_res.items()})
-    wandb.log({f"avg_cv_{k}": np.mean(v) for k, v in score_res.items()})
+    logwandb({f"cv_{k}": v for k, v in score_res.items()})
+    logwandb({f"avg_cv_{k}": np.mean(v) for k, v in score_res.items()})
 
     # %% Permutation feature importance from sklearn
     start_time = time.time()
@@ -273,7 +273,7 @@ def train_score_model(train_test_X_y_in, model_name, cv_n_folds):
 
     feat_importances = pd.Series(
         result.importances_mean, index=feat_names).to_frame()
-    wandb.log({"permutation_feat_importances": feat_importances.to_dict()})
+    logwandb({"permutation_feat_importances": feat_importances.to_dict()})
 
     fig, ax = plt.subplots()
     feat_importances.plot.bar(yerr=result.importances_std, ax=ax)
@@ -281,7 +281,7 @@ def train_score_model(train_test_X_y_in, model_name, cv_n_folds):
     ax.set_ylabel("Mean accuracy decrease")
     ax.set_xticklabels(feat_names)
     fig.tight_layout()
-    wandb.log({"permutation_importances_plot": wandb.Image(fig)})
+    logwandb({"permutation_importances_plot": wandb.Image(fig)})
 
     for feat_name in X_train.columns:
         n_bins = y_train.unique().shape[0]
@@ -295,7 +295,7 @@ def train_score_model(train_test_X_y_in, model_name, cv_n_folds):
             model_expected_value=True, feature_expected_value=True, ax=ax
         )
 
-        wandb.log({f"partial_dependence_{feat_name}": wandb.Image(fig)})
+        logwandb({f"partial_dependence_{feat_name}": wandb.Image(fig)})
 
 
 
@@ -327,14 +327,14 @@ def estimate_sage(train_test_X_y_in, model_name, sage_imputer, n_sage_perm):
     fig = sage_values.plot(feat_names, return_fig=True)
     [l.set_fontsize(8) for l in fig.axes[0].get_yticklabels()]
 
-    wandb.log({f"sage_mean_{n}": v for n, v in zip(
+    logwandb({f"sage_mean_{n}": v for n, v in zip(
         feat_names, sage_values.values)})
-    wandb.log({f"sage_std_{n}": v for n, v in zip(feat_names, sage_values.std)})
-    wandb.log({"sage_importances_plot": wandb.Image(fig)})
+    logwandb({f"sage_std_{n}": v for n, v in zip(feat_names, sage_values.std)})
+    logwandb({"sage_importances_plot": wandb.Image(fig)})
 
     # Feature importance from SAGE
     start_time = time.time()
-    wandb.log({"time_sage_feat_imp": time.time() - start_time})
+    logwandb({"time_sage_feat_imp": time.time() - start_time})
 
 
 @task
@@ -374,14 +374,14 @@ def estimate_shap(train_test_X_y_in, model_name, sage_imputer, n_sage_perm):
     fig = sage_values.plot(feat_names, return_fig=True)
     [l.set_fontsize(8) for l in fig.axes[0].get_yticklabels()]
 
-    wandb.log({f"sage_mean_{n}": v for n, v in zip(
+    logwandb({f"sage_mean_{n}": v for n, v in zip(
         feat_names, sage_values.values)})
-    wandb.log({f"sage_std_{n}": v for n, v in zip(feat_names, sage_values.std)})
-    wandb.log({"sage_importances_plot": wandb.Image(fig)})
+    logwandb({f"sage_std_{n}": v for n, v in zip(feat_names, sage_values.std)})
+    logwandb({"sage_importances_plot": wandb.Image(fig)})
 
     # Feature importance from SAGE
     start_time = time.time()
-    wandb.log({"time_sage_feat_imp": time.time() - start_time})
+    logwandb({"time_sage_feat_imp": time.time() - start_time})
 
 
 # %%
@@ -425,7 +425,7 @@ def one_run(
             "miss_threshold": miss_threshold,
         }
 
-        wandb.log(run_pars)
+        logwandb(run_pars)
         logger.info(f"RUNNING {run_pars}")
 
         data = get_latest_port_data_task.fn()
