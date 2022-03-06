@@ -134,3 +134,14 @@ def set_types_edge_list(df_edges):
     df_edges["uid"] = df_edges["uid"].astype('category')
     return df_edges
 
+@task
+def get_latest_port_data_task(load_path=None):
+    if load_path is None:
+        load_path = get_data_path() / "processed"
+
+    data = {
+        "centralities": pd.read_parquet(load_path / "centralities-ports.parquet"), 
+        "features": pd.read_parquet(load_path / "ports_features.parquet" )
+    }
+
+    return data

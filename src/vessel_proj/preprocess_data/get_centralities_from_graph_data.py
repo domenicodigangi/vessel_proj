@@ -120,12 +120,11 @@ def get_centralities(G: nx.DiGraph) -> pd.DataFrame:
 #%%
 
 @task
-def main():
+def main(load_path, save_path):
     """
     load edge_list  select largest connected component 
     """
 
-    load_path = get_data_path() / "interim"
 
     dfg_edges_per_cat = pd.read_parquet(load_path / "edge_list_aggregated.parquet")
 
@@ -135,7 +134,6 @@ def main():
 
     df_centr = get_centralities(G)
 
-    save_path = get_data_path() / "processed"
 
     df_centr.to_parquet(save_path / "centralities-ports.parquet")
 

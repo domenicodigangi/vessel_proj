@@ -70,15 +70,14 @@ def clean_ports_info(df_ports):
 #%%
 
 @task
-def main():
+def main(load_path, save_path):
     """
     load world port index info, cast types, drop some columns and store as parquet
     """
-    load_path = get_data_path() / "interim"
     df = pd.read_parquet(load_path /  "wpi_2019.parquet")
 
     df_clean = clean_ports_info(df)
-    save_path = get_data_path() / "processed"
+
     df_clean.to_parquet(save_path / 'ports_features.parquet')
 
 if __name__ == "__main__":

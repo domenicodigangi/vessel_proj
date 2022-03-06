@@ -1,4 +1,26 @@
-#%%
+# %%
+from sklearn.base import ClassifierMixin
+from prefect import task, flow
+import seaborn as sns
+from sklearn.preprocessing import StandardScaler
+from argh import arg
+import argh
+import sage
+from xgboost import XGBClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer
+from sklearn.preprocessing import KBinsDiscretizer
+from sklearn.metrics import make_scorer, plot_roc_curve
+from sklearn.inspection import permutation_importance
+import wandb
+import shap
+from vessel_proj.utils import catch_all_and_log
+from vessel_proj.preprocess_data import (
+    get_project_name,
+    get_wandb_root_path,
+    get_latest_port_data_task,
+)
 import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
@@ -18,39 +40,15 @@ from sklearn.exceptions import ConvergenceWarning
 import warnings
 
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
-from vessel_proj.preprocess_data import (
-    get_project_name,
-    get_wandb_root_path,
-    get_latest_port_data_task,
-)
-from vessel_proj.utils import catch_all_and_log
 
-import wandb
-from sklearn.inspection import permutation_importance
-
-from sklearn.metrics import make_scorer, plot_roc_curve
-from sklearn.preprocessing import KBinsDiscretizer
-from sklearn.experimental import enable_iterative_imputer
-from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer
-from sklearn.ensemble import RandomForestClassifier
-from xgboost import XGBClassifier
-import sage
-import argh
-from argh import arg
-from sklearn.preprocessing import StandardScaler
-import seaborn as sns
 
 sns.set_theme(style="darkgrid")
 
-from prefect import task, flow
 
 logger = logging.getLogger(__file__)
-import copy
-
-from sklearn.base import ClassifierMixin
 
 
-#%%
+# %%
 
 
 @catch_all_and_log
@@ -65,7 +63,8 @@ def add_avg_centr(data_in):
     # add avg of different measures
     scaler = StandardScaler()
     df = df_centr[
-        ["page_rank_bin", "page_rank_w_log_trips", "closeness_bin", "betweenness_bin"]
+        ["page_rank_bin", "page_rank_w_log_trips",
+            "closeness_bin", "betweenness_bin"]
     ]
     df_centr["avg_centr"] = scaler.fit_transform(df).mean(axis=1)
     df_centr["avg_rank_centr"] = df.rank().mean(axis=1)
@@ -183,7 +182,8 @@ def split_X_y(X_y):
     )
 
     logwandb(
-        {"train_set_size": X_train.shape[0], "test_set_size": X_test.shape[0],}
+        {"train_set_size": X_train.shape[0],
+            "test_set_size": X_test.shape[0], }
     )
 
     return {"train": (X_train, y_train), "test": (X_test, y_test)}
@@ -191,7 +191,8 @@ def split_X_y(X_y):
 
 @task
 def impute_missing(train_test_X_y_in, imputer_missing, feat_names_non_cat):
-    train_test_X_y = {k: copy.deepcopy(v) for k, v in train_test_X_y_in.items()}
+    train_test_X_y = {k: copy.deepcopy(v)
+                      for k, v in train_test_X_y_in.items()}
     try:
         wandb.log({"imputer_missing": imputer_missing})
     except:
@@ -209,7 +210,8 @@ def impute_missing(train_test_X_y_in, imputer_missing, feat_names_non_cat):
 
             imputer = SimpleImputer(strategy=strategy)
 
-            X_train[col] = imputer.fit_transform(X_train[col].values.reshape(-1, 1))
+            X_train[col] = imputer.fit_transform(
+                X_train[col].values.reshape(-1, 1))
             X_test[col] = imputer.transform(X_test[col].values.reshape(-1, 1))
 
     elif imputer_missing.startswith("IterativeImputer"):
@@ -230,7 +232,8 @@ def impute_missing(train_test_X_y_in, imputer_missing, feat_names_non_cat):
 
 @task
 def train_score_model(train_test_X_y_in, model_name, cv_n_folds):
-    train_test_X_y = {k: copy.deepcopy(v) for k, v in train_test_X_y_in.items()}
+    train_test_X_y = {k: copy.deepcopy(v)
+                      for k, v in train_test_X_y_in.items()}
 
     model = eval(model_name)
     (X_train, y_train) = train_test_X_y["train"]
@@ -268,7 +271,8 @@ def train_score_model(train_test_X_y_in, model_name, cv_n_folds):
         model, X_test, y_test, n_repeats=10, random_state=42, n_jobs=20
     )
 
-    feat_importances = pd.Series(result.importances_mean, index=feat_names).to_frame()
+    feat_importances = pd.Series(
+        result.importances_mean, index=feat_names).to_frame()
     wandb.log({"permutation_feat_importances": feat_importances.to_dict()})
 
     fig, ax = plt.subplots()
@@ -279,10 +283,26 @@ def train_score_model(train_test_X_y_in, model_name, cv_n_folds):
     fig.tight_layout()
     wandb.log({"permutation_importances_plot": wandb.Image(fig)})
 
+    for feat_name in X_train.columns:
+        n_bins = y_train.unique().shape[0]
+        if n_bins == 2:
+            def yplot(x): return model.predict_proba(x)[:, 1]
+        else:
+            yplot = model.predict
+        fig, ax = plt.subplots()
+        shap.plots.partial_dependence(
+            feat_name, yplot, X_train, ice=False,
+            model_expected_value=True, feature_expected_value=True, ax=ax
+        )
+
+        wandb.log({f"partial_dependence_{feat_name}": wandb.Image(fig)})
+
+
 
 @task
 def estimate_sage(train_test_X_y_in, model_name, sage_imputer, n_sage_perm):
-    train_test_X_y = {k: copy.deepcopy(v) for k, v in train_test_X_y_in.items()}
+    train_test_X_y = {k: copy.deepcopy(v)
+                      for k, v in train_test_X_y_in.items()}
 
     model = eval(model_name)
     (X_train, y_train) = train_test_X_y["train"]
@@ -307,7 +327,8 @@ def estimate_sage(train_test_X_y_in, model_name, sage_imputer, n_sage_perm):
     fig = sage_values.plot(feat_names, return_fig=True)
     [l.set_fontsize(8) for l in fig.axes[0].get_yticklabels()]
 
-    wandb.log({f"sage_mean_{n}": v for n, v in zip(feat_names, sage_values.values)})
+    wandb.log({f"sage_mean_{n}": v for n, v in zip(
+        feat_names, sage_values.values)})
     wandb.log({f"sage_std_{n}": v for n, v in zip(feat_names, sage_values.std)})
     wandb.log({"sage_importances_plot": wandb.Image(fig)})
 
@@ -316,7 +337,54 @@ def estimate_sage(train_test_X_y_in, model_name, sage_imputer, n_sage_perm):
     wandb.log({"time_sage_feat_imp": time.time() - start_time})
 
 
-#%%
+@task
+def estimate_shap(train_test_X_y_in, model_name, sage_imputer, n_sage_perm):
+    train_test_X_y = {k: copy.deepcopy(v)
+                      for k, v in train_test_X_y_in.items()}
+
+    model = eval(model_name)
+    (X_train, y_train) = train_test_X_y["train"]
+    (X_test, y_test) = train_test_X_y["test"]
+    feat_names = list(X_train.columns)
+    model.fit(X_train, y_train)
+    # feat_name = "LONGITUDE"
+   
+    # compute the SHAP values for the linear model
+    explainer = shap.Explainer(model.predict, X_train)
+    shap_values = explainer(X_train)
+    shap.plots.beeswarm(shap_values, max_display=14)
+
+    
+
+    
+
+    # Set up an imputer to handle missing features
+    if sage_imputer == "MarginalImputer":
+        imputer = sage.MarginalImputer(model, X_train)
+    elif sage_imputer == "DefaultImputer":
+        imputer = sage.DefaultImputer(model, np.zeros(X_train.shape[1]))
+
+    # Set up an estimator
+    estimator = sage.PermutationEstimator(imputer, "cross entropy")
+
+    # Calculate SAGE values
+    sage_values = estimator(
+        X_test.values, y_test.values, verbose=True, n_permutations=n_sage_perm
+    )
+    fig = sage_values.plot(feat_names, return_fig=True)
+    [l.set_fontsize(8) for l in fig.axes[0].get_yticklabels()]
+
+    wandb.log({f"sage_mean_{n}": v for n, v in zip(
+        feat_names, sage_values.values)})
+    wandb.log({f"sage_std_{n}": v for n, v in zip(feat_names, sage_values.std)})
+    wandb.log({"sage_importances_plot": wandb.Image(fig)})
+
+    # Feature importance from SAGE
+    start_time = time.time()
+    wandb.log({"time_sage_feat_imp": time.time() - start_time})
+
+
+# %%
 @flow
 def one_run(
     model_name,
@@ -381,12 +449,13 @@ def one_run(
         train_score_model.fn(train_test_X_y, model_name, cv_n_folds)
 
         if run_sage in ["True", "Y", "T", True]:
-            estimate_sage.fn(train_test_X_y, model_name, sage_imputer, n_sage_perm)
+            estimate_sage.fn(train_test_X_y, model_name,
+                             sage_imputer, n_sage_perm)
 
         logger.info(f"FINISHED {run_pars}")
 
 
-#%% define variable for development
+# %% define variable for development
 if False:
     feat_names_non_cat = ["TIDE_RANGE", "LATITUDE", "LONGITUDE"]
     cols_to_drop = ["PORT_NAME", "REGION_NO", "PUB"]
@@ -427,7 +496,9 @@ if False:
         test_run_flag=False,
     )
 
-#%%
+# %%
+
+
 @arg("--run_sage", help="compute and log sage feat importance")
 @arg(
     "--n_sage_perm",
@@ -449,7 +520,8 @@ def main(
     miss_threshold=0.5,
 ):
 
-    all_model_names = ["RandomForestClassifier(random_state=0)"]  # , "XGBClassifier()"]
+    # , "XGBClassifier()"]
+    all_model_names = ["RandomForestClassifier(random_state=0)"]
     all_y_names = [
         "page_rank_bin",
         "page_rank_w_log_trips",
@@ -457,7 +529,8 @@ def main(
         "betweenness_bin",
         "avg_rank_centr",
     ]
-    all_imputer_names = ["SimpleImputer()", "KNNImputer()", "IterativeImputer()"]
+    all_imputer_names = ["SimpleImputer()", "KNNImputer()",
+                         "IterativeImputer()"]
     for model_name in all_model_names:
         for yname in all_y_names:
             for imputer_missing in all_imputer_names:
