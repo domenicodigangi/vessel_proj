@@ -520,8 +520,7 @@ def main(
     miss_threshold=0.5,
 ):
 
-    # , "XGBClassifier()"]
-    all_model_names = ["RandomForestClassifier(random_state=0)"]
+    all_model_names = ["RandomForestClassifier(random_state=0)", "XGBClassifier()"]
     all_y_names = [
         "page_rank_bin",
         "page_rank_w_log_trips",
