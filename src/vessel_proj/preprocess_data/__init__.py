@@ -7,11 +7,18 @@ import wandb
 from pathlib import Path
 from types import SimpleNamespace
 from prefect import task
+from dotenv import load_dotenv
+import os 
+
 
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+
+load_dotenv()
+_proj_name = os.environ.get('wandb_proj_name')
+_wandb_entity = os.environ.get('wandb_entity')
 
 
 def create_data_fold_structure(project_dir):
@@ -24,7 +31,11 @@ def create_data_fold_structure(project_dir):
 
 
 def get_project_name():
-    return "vessel-proj"
+    return _proj_name
+
+
+def get_wandb_entity():
+    return _wandb_entity
 
 def get_project_root():
     return Path(__file__).parent.parent.parent.parent

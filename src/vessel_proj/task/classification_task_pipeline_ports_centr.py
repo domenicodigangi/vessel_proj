@@ -18,6 +18,7 @@ import shap
 from vessel_proj.utils import catch_all_and_log
 from vessel_proj.preprocess_data import (
     get_project_name,
+    get_wandb_entity,
     get_wandb_root_path,
     get_latest_port_data_task,
 )
@@ -216,13 +217,14 @@ def impute_missing(train_test_X_y_in, imputer_missing, feat_names_non_cat):
 
     elif imputer_missing.startswith("IterativeImputer"):
         imputer = IterativeImputer(initial_strategy="most_frequent")
-        X_train = imputer.fit_transform(X_train)
-        X_test = imputer.transform(X_test)
+        for col in X_train.columns:
+            X_train.values = imputer.fit_transform(X_train)
+            X_test.values = imputer.transform(X_test)
 
     elif imputer_missing.startswith("KNNImputer"):
         imputer = KNNImputer()
-        X_train = imputer.fit_transform(X_train)
-        X_test = imputer.transform(X_test)
+        X_train.values = imputer.fit_transform(X_train)
+        X_test.values = imputer.transform(X_test)
 
     train_test_X_y["train"] = (X_train, y_train)
     train_test_X_y["test"] = (X_test, y_test)
