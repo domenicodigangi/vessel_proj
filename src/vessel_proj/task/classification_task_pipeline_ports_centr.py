@@ -340,9 +340,11 @@ def estimate_sage(train_test_X_y_in, model_name, sage_imputer, n_sage_perm):
 
 
 @task
-def estimate_shap(train_test_X_y_in, model_name, sage_imputer, n_sage_perm):
+def estimate_shap(train_test_X_y_in, model_name):
     train_test_X_y = {k: copy.deepcopy(v)
                       for k, v in train_test_X_y_in.items()}
+
+    start_time = time.time()
 
     model = eval(model_name)
     (X_train, y_train) = train_test_X_y["train"]
@@ -354,41 +356,32 @@ def estimate_shap(train_test_X_y_in, model_name, sage_imputer, n_sage_perm):
     # compute the SHAP values for the linear model
     explainer = shap.Explainer(model.predict, X_train)
     shap_values = explainer(X_train)
+
+
+    fig = plt.figure()    
     shap.plots.beeswarm(shap_values, max_display=14)
+    logwandb({"shap-swarm": wandb.Image(fig)})
 
+    fig = plt.figure()    
+    shap.plots.bar(shap_values, max_display=14)
+    logwandb({"shap-mean": wandb.Image(fig)})
     
-
+    fig = plt.figure()    
+    shap.plots.heatmap(shap_values[:1000], max_display=14)
+    logwandb({"shap-heat": wandb.Image(fig)})
     
+    
+    shap_tab = wandb.Table(columns=shap_values.feature_names, data=shap_values.values)
 
-    # Set up an imputer to handle missing features
-    if sage_imputer == "MarginalImputer":
-        imputer = sage.MarginalImputer(model, X_train)
-    elif sage_imputer == "DefaultImputer":
-        imputer = sage.DefaultImputer(model, np.zeros(X_train.shape[1]))
+    logwandb({"shap_table": shap_tab})
 
-    # Set up an estimator
-    estimator = sage.PermutationEstimator(imputer, "cross entropy")
-
-    # Calculate SAGE values
-    sage_values = estimator(
-        X_test.values, y_test.values, verbose=True, n_permutations=n_sage_perm
-    )
-    fig = sage_values.plot(feat_names, return_fig=True)
-    [l.set_fontsize(8) for l in fig.axes[0].get_yticklabels()]
-
-    logwandb({f"sage_mean_{n}": v for n, v in zip(
-        feat_names, sage_values.values)})
-    logwandb({f"sage_std_{n}": v for n, v in zip(feat_names, sage_values.std)})
-    logwandb({"sage_importances_plot": wandb.Image(fig)})
-
-    # Feature importance from SAGE
-    start_time = time.time()
-    logwandb({"time_sage_feat_imp": time.time() - start_time})
+    logwandb({"time_shap_feat_imp": time.time() - start_time})
 
 
 # %%
 @flow
 def one_run(
+    vessel_category,
     model_name,
     yname,
     imputer_missing,
@@ -415,6 +408,7 @@ def one_run(
             run.tags = (*run.tags, "test_run")
 
         run_pars = {
+            "vessel_category": vessel_category,
             "model": model_name,
             "var_predicted": yname,
             "cv_n_folds": cv_n_folds,
@@ -430,7 +424,7 @@ def one_run(
         logwandb(run_pars)
         logger.info(f"RUNNING {run_pars}")
 
-        data = get_latest_port_data_task.fn()
+        data = get_latest_port_data_task.fn(vessel_category)
 
         data = add_avg_centr.fn(data)
 
@@ -454,11 +448,14 @@ def one_run(
             estimate_sage.fn(train_test_X_y, model_name,
                              sage_imputer, n_sage_perm)
 
+            estimate_shap.fn(train_test_X_y, model_name)
+
         logger.info(f"FINISHED {run_pars}")
 
 
 # %% define variable for development
 if False:
+    vessel_category="cargo"
     feat_names_non_cat = ["TIDE_RANGE", "LATITUDE", "LONGITUDE"]
     cols_to_drop = ["PORT_NAME", "REGION_NO", "PUB"]
     yname = "page_rank_w_log_trips"
@@ -521,7 +518,7 @@ def main(
     log_of_target=False,
     miss_threshold=0.5,
 ):
-
+    all_vessel_category = ["cargo", "all"]
     all_model_names = ["RandomForestClassifier(random_state=0)", "XGBClassifier()"]
     all_y_names = [
         "page_rank_bin",
@@ -532,45 +529,48 @@ def main(
     ]
     all_imputer_names = ["SimpleImputer()", "KNNImputer()",
                          "IterativeImputer()"]
-    for model_name in all_model_names:
-        for yname in all_y_names:
-            for imputer_missing in all_imputer_names:
+    for vessel_category in all_vessel_category:
+        for model_name in all_model_names:
+            for yname in all_y_names:
+                for imputer_missing in all_imputer_names:
 
-                if disc_strategy.startswith("top_"):
-                    for k in [182, 363, 544]:
-                        if disc_strategy == "top_k":
-                            disc_strategy_run = f"top_{k}"
-                        elif disc_strategy == "top_bottom_k":
-                            disc_strategy_run = f"top_bottom_{k}"
+                    if disc_strategy.startswith("top_"):
+                        for k in [182, 363, 544]:
+                            if disc_strategy == "top_k":
+                                disc_strategy_run = f"top_{k}"
+                            elif disc_strategy == "top_bottom_k":
+                                disc_strategy_run = f"top_bottom_{k}"
 
-                        one_run(
-                            model_name,
-                            yname,
-                            imputer_missing,
-                            run_sage,
-                            n_sage_perm,
-                            cv_n_folds,
-                            sage_imputer,
-                            disc_strategy_run,
-                            miss_threshold,
-                            log_of_target,
-                        )
+                            one_run(
+                                vessel_category,
+                                model_name,
+                                yname,
+                                imputer_missing,
+                                run_sage,
+                                n_sage_perm,
+                                cv_n_folds,
+                                sage_imputer,
+                                disc_strategy_run,
+                                miss_threshold,
+                                log_of_target,
+                            )
 
-                elif disc_strategy == "kmeans":
-                    for n_bins in [2, 3, 4, 5]:
-                        disc_strategy_run = f"kmeans_{n_bins}"
-                        one_run(
-                            model_name,
-                            yname,
-                            imputer_missing,
-                            run_sage,
-                            n_sage_perm,
-                            cv_n_folds,
-                            sage_imputer,
-                            disc_strategy_run,
-                            miss_threshold,
-                            log_of_target,
-                        )
+                    elif disc_strategy == "kmeans":
+                        for n_bins in [2, 3, 4, 5]:
+                            disc_strategy_run = f"kmeans_{n_bins}"
+                            one_run(
+                                vessel_category,
+                                model_name,
+                                yname,
+                                imputer_missing,
+                                run_sage,
+                                n_sage_perm,
+                                cv_n_folds,
+                                sage_imputer,
+                                disc_strategy_run,
+                                miss_threshold,
+                                log_of_target,
+                            )
 
 
 parser = argh.ArghParser()

@@ -146,12 +146,12 @@ def set_types_edge_list(df_edges):
     return df_edges
 
 @task
-def get_latest_port_data_task(load_path=None):
+def get_latest_port_data_task(vessel_category, load_path=None):
     if load_path is None:
         load_path = get_data_path() / "processed"
 
     data = {
-        "centralities": pd.read_parquet(load_path / "centralities-ports.parquet"), 
+        "centralities": pd.read_parquet(load_path / f"centralities-ports-{vessel_category}.parquet"), 
         "features": pd.read_parquet(load_path / "ports_features.parquet" )
     }
 
