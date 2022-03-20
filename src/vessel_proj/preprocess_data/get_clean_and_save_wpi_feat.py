@@ -70,7 +70,7 @@ def clean_ports_info(df_ports):
 #%%
 
 @task
-def get_and_clean_wpi_feat(load_path, save_path):
+def get_clean_and_save_wpi_feat(load_path, save_path):
     """
     load world port index info, cast types, drop some columns and store as parquet
     """
@@ -81,4 +81,4 @@ def get_and_clean_wpi_feat(load_path, save_path):
     df_clean.to_parquet(save_path / 'ports_features.parquet')
 
 if __name__ == "__main__":
-    get_and_clean_wpi_feat.fn()
+    get_clean_and_save_wpi_feat.fn()

@@ -1,4 +1,4 @@
-#%%
+# %%
 import numpy as np
 import pandas as pd
 import networkx as nx
@@ -11,10 +11,11 @@ logger = logging.getLogger("root")
 FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
 logging.basicConfig(format=FORMAT)
 
-from prefect import task
 timer = get_timer(level=logging.INFO)
 
 # %%
+
+
 @timer()
 def download_graph_data_zenodo() -> pd.DataFrame:
     raise NotImplementedError
@@ -37,26 +38,24 @@ def group_links_all_categories(dfg_edges_per_cat):
 
     dfg_edges_per_cat = dfg_edges_per_cat.reset_index(level=2)
 
-    df_edges = dfg_edges_per_cat.groupby(by = ["start_port", "end_port"]).agg(
-        trips_count = ("trips_count", "sum"),
-        vesseltype_count = ("vessel_category", "count"),
+    df_edges = dfg_edges_per_cat.groupby(by=["start_port", "end_port"]).agg(
+        trips_count=("trips_count", "sum"),
+        vesseltype_count=("vessel_category", "count"),
     )
 
     df_edges["log_trips_count"] = np.log(df_edges["trips_count"])
 
     df_edges = df_edges.reset_index()
 
-
     return df_edges
 
 
 @timer()
-def edges_to_nx_one_conn_comp(df_edges_grouped: pd.DataFrame):
+def edges_to_nx_one_conn_comp(df_edges: pd.DataFrame):
 
-
-    #%% Create graph
+    # %% Create graph
     G_0 = nx.convert_matrix.from_pandas_edgelist(
-        df_edges_grouped,
+        df_edges,
         "start_port",
         "end_port",
         edge_attr=[
@@ -67,23 +66,28 @@ def edges_to_nx_one_conn_comp(df_edges_grouped: pd.DataFrame):
         create_using=nx.DiGraph(),
     )
 
-    #%% keep only largest component
+    # %% keep only largest component
 
     subgraphs_conn = [
         G_0.subgraph(c).copy() for c in nx.connected_components(G_0.to_undirected())
     ]
 
-    n_nodes_conn = [S.number_of_nodes() for S in subgraphs_conn]
+    dfG = pd.DataFrame({"subgraph": subgraphs_conn})
 
-    logger.info(f"Nodes in conn comp {n_nodes_conn}")
-    G = subgraphs_conn[0]
+    dfG["n_nodes"] = dfG["subgraph"].apply(lambda x: x.number_of_nodes())
+
+    dfG = dfG.sort_values(by="n_nodes", ascending=False)
+
+    logger.info(f"Nodes in conn comp {dfG['n_nodes']}")
+
+    G = dfG["subgraph"].iloc[0]
 
     return G
 
-    
+
 @timer()
 def get_centralities(G: nx.DiGraph) -> pd.DataFrame:
-    #%% Compute centralities
+    # %% Compute centralities
     df_centr = pd.DataFrame.from_dict(
         nx.eigenvector_centrality_numpy(G), orient="index", columns=["centr_eig_bin"]
     )
@@ -99,11 +103,13 @@ def get_centralities(G: nx.DiGraph) -> pd.DataFrame:
         nx.algorithms.link_analysis.pagerank_alg.pagerank(G), orient="index"
     ).iloc[:, 0]
     df_centr["page_rank_w_trips"] = pd.DataFrame.from_dict(
-        nx.algorithms.link_analysis.pagerank_alg.pagerank(G, weight="trips_count"),
+        nx.algorithms.link_analysis.pagerank_alg.pagerank(
+            G, weight="trips_count"),
         orient="index",
     ).iloc[:, 0]
     df_centr["page_rank_w_log_trips"] = pd.DataFrame.from_dict(
-        nx.algorithms.link_analysis.pagerank_alg.pagerank(G, weight="log_trips_count"),
+        nx.algorithms.link_analysis.pagerank_alg.pagerank(
+            G, weight="log_trips_count"),
         orient="index",
     ).iloc[:, 0]
 
@@ -123,7 +129,7 @@ def get_centralities(G: nx.DiGraph) -> pd.DataFrame:
 
     return df_centr
 
-#%%
+# %%
 
 
 @task
@@ -134,17 +140,20 @@ def get_and_save_centralities_from_graph_data(save_path):
     """
 
     dfg_edges_per_cat = get_graph_data()
-    
+
     idx = pd.IndexSlice
-    cat_names = dfg_edges_per_cat.index.to_frame()["vessel_category"].unique().to_list()
+    cat_names = dfg_edges_per_cat.index.to_frame(
+    )["vessel_category"].unique().to_list()
     cat_names.append("all")
     for cat in cat_names:
+        logger.info(f"preprocessing centralities for {cat}")
         if cat == "all":
             row_ind = idx[:, :, :]
         else:
             row_ind = idx[:, :, cat]
 
-        dfg_subset = dfg_edges_per_cat.sort_index(ascending=True).loc[row_ind, :]
+        dfg_subset = dfg_edges_per_cat.sort_index(
+            ascending=True).loc[row_ind, :]
 
         df_edges = group_links_all_categories(dfg_subset)
 
@@ -156,7 +165,8 @@ def get_and_save_centralities_from_graph_data(save_path):
 
     return df_centr
 
-#%%
+
+# %%
 if __name__ == "__main__":
     get_and_save_centralities_from_graph_data.fn()
 
