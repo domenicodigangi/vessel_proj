@@ -15,19 +15,23 @@ import warnings
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
 from sklearn.metrics import make_scorer
 from xgboost import XGBRegressor
-from vessel_proj.preprocess_data import get_latest_port_data, get_project_name, save_parquet_and_wandb_log, get_project_name
+from vessel_proj.preprocess_data import get_latest_port_data_task, get_project_name, get_project_name
 from vessel_proj.task.classification_task_pipeline_ports_centr import add_avg_centr
 from sklearn.cluster import KMeans
 import seaborn as sns
 sns.set_theme(style="darkgrid")
 
 #%% get data from artifacts
-data = get_latest_port_data()
+vessel_category = "cargo"
+data = get_latest_port_data_task.fn(vessel_category)
+
 df_feat = data["features"]
 df_centr = data["centralities"]
 df_centr = add_avg_centr.fn(data)["centralities"]
 
-save_parquet_and_wandb_log(df_centr, "centralities-ports", "interim", project=get_project_name())
+df = df_centr.merge(df_feat, left_index=True, right_index=True)
+
+df.sort_values(by="avg_centr", ascending=False)[["avg_centr", "PORT_NAME"]].head(50)
 
 #%% Scatter
 df = df_centr.drop(columns=["page_rank_w_trips", "centr_eig_w_trips", "centr_eig_bin", "centr_eig_w_log_trips"])

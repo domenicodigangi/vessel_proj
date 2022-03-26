@@ -49,3 +49,9 @@ correct = (pred[data.test_mask] == data.y[data.test_mask]).sum()
 acc = int(correct) / int(data.test_mask.sum())
 print(f'Accuracy: {acc:.4f}')
 # %%
+F.log_softmax(model(data), dim=1).shape
+
+model(data).shape
+
+data.y
+#

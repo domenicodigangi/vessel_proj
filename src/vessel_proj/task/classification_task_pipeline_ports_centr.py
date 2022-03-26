@@ -190,6 +190,22 @@ def split_X_y(X_y):
     return {"train": (X_train, y_train), "test": (X_test, y_test)}
 
 
+def simple_impute_cols(feat_names_non_cat, df_train, df_test=None):
+    for col in df_train.columns:
+        if col in feat_names_non_cat:
+            strategy = "mean"
+        else:
+            strategy = "most_frequent"
+
+        imputer = SimpleImputer(strategy=strategy)
+
+        df_train[col] = imputer.fit_transform(
+            df_train[col].values.reshape(-1, 1))
+        if df_test is not None:
+            df_test[col] = imputer.transform(df_test[col].values.reshape(-1, 1))
+    
+    return df_train, df_test
+
 @task
 def impute_missing(train_test_X_y_in, imputer_missing, feat_names_non_cat):
     train_test_X_y = {k: copy.deepcopy(v)
@@ -203,28 +219,19 @@ def impute_missing(train_test_X_y_in, imputer_missing, feat_names_non_cat):
     (X_test, y_test) = train_test_X_y["test"]
 
     if imputer_missing.startswith("SimpleImputer"):
-        for col in X_train.columns:
-            if col in feat_names_non_cat:
-                strategy = "mean"
-            else:
-                strategy = "most_frequent"
+        X_train, X_test = simple_impute_cols(X_train, X_test)
+        
+    else:
+        if imputer_missing.startswith("IterativeImputer"):
+            imputer = IterativeImputer(initial_strategy="most_frequent")
+            
+        elif imputer_missing.startswith("KNNImputer"):
+            imputer = KNNImputer()
+        else:
+            raise NotImplementedError("Imputer not considered")
 
-            imputer = SimpleImputer(strategy=strategy)
-
-            X_train[col] = imputer.fit_transform(
-                X_train[col].values.reshape(-1, 1))
-            X_test[col] = imputer.transform(X_test[col].values.reshape(-1, 1))
-
-    elif imputer_missing.startswith("IterativeImputer"):
-        imputer = IterativeImputer(initial_strategy="most_frequent")
-        for col in X_train.columns:
-            X_train.values = imputer.fit_transform(X_train)
-            X_test.values = imputer.transform(X_test)
-
-    elif imputer_missing.startswith("KNNImputer"):
-        imputer = KNNImputer()
-        X_train.values = imputer.fit_transform(X_train)
-        X_test.values = imputer.transform(X_test)
+        X_train.iloc[:, :] = imputer.fit_transform(X_train)
+        X_test.iloc[:, :] = imputer.transform(X_test)
 
     train_test_X_y["train"] = (X_train, y_train)
     train_test_X_y["test"] = (X_test, y_test)
@@ -472,7 +479,7 @@ if False:
         name="test_run",
         tags=["test_run"],
     )
-    imputer_missing = "SimpleImputer()"
+    imputer_missing = "IterativeImputer()" #"SimpleImputer()"
     test_run_flag = True
     # disc_strategy = "kmeans_3"
     disc_strategy = "top_100"
@@ -521,10 +528,10 @@ def main(
     all_vessel_category = ["cargo", "all"]
     all_model_names = ["RandomForestClassifier(random_state=0)", "XGBClassifier()"]
     all_y_names = [
-        "page_rank_bin",
-        "page_rank_w_log_trips",
-        "closeness_bin",
-        "betweenness_bin",
+        # "page_rank_bin",
+        # "page_rank_w_log_trips",
+        # "closeness_bin",
+        # "betweenness_bin",
         "avg_rank_centr",
     ]
     all_imputer_names = ["SimpleImputer()", "KNNImputer()",
