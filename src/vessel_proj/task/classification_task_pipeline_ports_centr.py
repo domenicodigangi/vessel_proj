@@ -63,12 +63,12 @@ def add_avg_centr(data_in):
     df_centr = data["centralities"]
     # add avg of different measures
     scaler = StandardScaler()
-    df = df_centr["degree_in", "degree_out", 
-        ["page_rank_bin", "page_rank_w_log_trips",
-            "closeness_bin", "betweenness_bin"]
-    ]
+    df = df_centr[["degree_in", "degree_out", "page_rank_bin", "page_rank_w_log_trips",
+                   "closeness_bin", "betweenness_bin"]
+                  ]
+    nports = df_centr.shape[0]
+    df_centr["avg_rank_centr"] = df.rank().mean(axis=1)/nports
     df_centr["avg_centr"] = scaler.fit_transform(df).mean(axis=1)
-    df_centr["avg_rank_centr"] = df.rank().mean(axis=1)
 
     data["centralities"] = df_centr
 
@@ -202,9 +202,11 @@ def simple_impute_cols(feat_names_non_cat, df_train, df_test=None):
         df_train[col] = imputer.fit_transform(
             df_train[col].values.reshape(-1, 1))
         if df_test is not None:
-            df_test[col] = imputer.transform(df_test[col].values.reshape(-1, 1))
-    
+            df_test[col] = imputer.transform(
+                df_test[col].values.reshape(-1, 1))
+
     return df_train, df_test
+
 
 @task
 def impute_missing(train_test_X_y_in, imputer_missing, feat_names_non_cat):
@@ -220,11 +222,11 @@ def impute_missing(train_test_X_y_in, imputer_missing, feat_names_non_cat):
 
     if imputer_missing.startswith("SimpleImputer"):
         X_train, X_test = simple_impute_cols(X_train, X_test)
-        
+
     else:
         if imputer_missing.startswith("IterativeImputer"):
             imputer = IterativeImputer(initial_strategy="most_frequent")
-            
+
         elif imputer_missing.startswith("KNNImputer"):
             imputer = KNNImputer()
         else:
@@ -307,7 +309,6 @@ def train_score_model(train_test_X_y_in, model_name, cv_n_folds):
         logwandb({f"partial_dependence_{feat_name}": wandb.Image(fig)})
 
 
-
 @task
 def estimate_sage(train_test_X_y_in, model_name, sage_imputer, n_sage_perm):
     train_test_X_y = {k: copy.deepcopy(v)
@@ -359,26 +360,25 @@ def estimate_shap(train_test_X_y_in, model_name):
     feat_names = list(X_train.columns)
     model.fit(X_train, y_train)
     # feat_name = "LONGITUDE"
-   
+
     # compute the SHAP values for the linear model
     explainer = shap.Explainer(model.predict, X_train)
     shap_values = explainer(X_train)
 
-
-    fig = plt.figure()    
+    fig = plt.figure()
     shap.plots.beeswarm(shap_values, max_display=14)
     logwandb({"shap-swarm": wandb.Image(fig)})
 
-    fig = plt.figure()    
+    fig = plt.figure()
     shap.plots.bar(shap_values, max_display=14)
     logwandb({"shap-mean": wandb.Image(fig)})
-    
-    fig = plt.figure()    
+
+    fig = plt.figure()
     shap.plots.heatmap(shap_values[:1000], max_display=14)
     logwandb({"shap-heat": wandb.Image(fig)})
-    
-    
-    shap_tab = wandb.Table(columns=shap_values.feature_names, data=shap_values.values)
+
+    shap_tab = wandb.Table(
+        columns=shap_values.feature_names, data=shap_values.values)
 
     logwandb({"shap_table": shap_tab})
 
@@ -462,7 +462,7 @@ def one_run(
 
 # %% define variable for development
 if False:
-    vessel_category="cargo"
+    vessel_category = "cargo"
     feat_names_non_cat = ["TIDE_RANGE", "LATITUDE", "LONGITUDE"]
     cols_to_drop = ["PORT_NAME", "REGION_NO", "PUB"]
     yname = "page_rank_w_log_trips"
@@ -479,7 +479,7 @@ if False:
         name="test_run",
         tags=["test_run"],
     )
-    imputer_missing = "IterativeImputer()" #"SimpleImputer()"
+    imputer_missing = "IterativeImputer()"  # "SimpleImputer()"
     test_run_flag = True
     # disc_strategy = "kmeans_3"
     disc_strategy = "top_100"
@@ -526,7 +526,8 @@ def main(
     miss_threshold=0.5,
 ):
     all_vessel_category = ["cargo", "all"]
-    all_model_names = ["RandomForestClassifier(random_state=0)", "XGBClassifier()"]
+    all_model_names = [
+        "RandomForestClassifier(random_state=0)", "XGBClassifier()"]
     all_y_names = [
         # "page_rank_bin",
         # "page_rank_w_log_trips",

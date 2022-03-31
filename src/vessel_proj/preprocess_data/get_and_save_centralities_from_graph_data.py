@@ -142,7 +142,6 @@ def get_centralities(G: nx.DiGraph) -> pd.DataFrame:
 
 
 @task
-@timer()
 def get_and_save_centralities_from_graph_data(save_path):
     """
     load edge_list  select largest connected component 

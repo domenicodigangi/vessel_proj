@@ -1,7 +1,7 @@
 #%%
 import pandas as pd
 import numpy as np
-from matplotlib import pyplot as plt
+from matplotlib import markers, pyplot as plt
 from sklearn.model_selection import train_test_split
 import sklearn
 
@@ -31,7 +31,10 @@ df_centr = add_avg_centr.fn(data)["centralities"]
 
 df = df_centr.merge(df_feat, left_index=True, right_index=True)
 
-df.sort_values(by="avg_centr", ascending=False)[["avg_centr", "PORT_NAME"]].head(50)
+df.sort_values(by="avg_rank_centr", ascending=False)[["avg_centr", "avg_rank_centr", "PORT_NAME"]].head(50)
+
+df_centr.sort_values(by="avg_rank_centr", ascending=False)
+
 
 #%% Scatter
 df = df_centr.drop(columns=["page_rank_w_trips", "centr_eig_w_trips", "centr_eig_bin", "centr_eig_w_log_trips"])

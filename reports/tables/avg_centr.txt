@@ -1,0 +1,16 @@
+\begin{tabular}{llr}
+\toprule
+{} &                    PORT_NAME &  avg_centr \\
+\midrule
+0 &    KEPPEL - (EAST SINGAPORE) &  10.363537 \\
+1 &                 EUROPA POINT &   8.380867 \\
+2 &             PUERTO CRISTOBAL &   7.035857 \\
+3 &                        CEUTA &   6.610873 \\
+4 &                    VACAMONTE &   6.576523 \\
+5 &                   LAS PALMAS &   5.776081 \\
+6 &  AL ISKANDARIYH (ALEXANDRIA) &   4.846892 \\
+7 &                  KATSUNAN KO &   4.794087 \\
+8 &                   EL-ADABIYA &   4.735214 \\
+9 &                       DURBAN &   4.455706 \\
+\bottomrule
+\end{tabular}
