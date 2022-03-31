@@ -95,6 +95,15 @@ def get_centralities(G: nx.DiGraph) -> pd.DataFrame:
     df_centr["centr_eig_w_trips"] = pd.DataFrame.from_dict(
         nx.eigenvector_centrality_numpy(G, weight="trips_count"), orient="index"
     ).iloc[:, 0]
+    
+    df_centr["degree_in"] = pd.DataFrame.from_dict(
+        nx.in_degree_centrality(G), orient="index"
+    ).iloc[:, 0]
+    
+    df_centr["degree_out"] = pd.DataFrame.from_dict(
+            nx.out_degree_centrality(G), orient="index"
+        ).iloc[:, 0]
+    
     df_centr["centr_eig_w_log_trips"] = pd.DataFrame.from_dict(
         nx.eigenvector_centrality_numpy(G, weight="log_trips_count"), orient="index"
     ).iloc[:, 0]
@@ -145,6 +154,7 @@ def get_and_save_centralities_from_graph_data(save_path):
     cat_names = dfg_edges_per_cat.index.to_frame(
     )["vessel_category"].unique().to_list()
     cat_names.append("all")
+    # cat_names = "all"
     for cat in cat_names:
         logger.info(f"preprocessing centralities for {cat}")
         if cat == "all":

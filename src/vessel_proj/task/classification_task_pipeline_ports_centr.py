@@ -63,7 +63,7 @@ def add_avg_centr(data_in):
     df_centr = data["centralities"]
     # add avg of different measures
     scaler = StandardScaler()
-    df = df_centr[
+    df = df_centr["degree_in", "degree_out", 
         ["page_rank_bin", "page_rank_w_log_trips",
             "closeness_bin", "betweenness_bin"]
     ]
