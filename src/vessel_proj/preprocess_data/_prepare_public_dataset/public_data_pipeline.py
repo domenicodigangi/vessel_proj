@@ -1,5 +1,6 @@
-#%%
+# %%
 from prefect import flow, task
+from prefect.deployments import DeploymentSpec
 import pandas as pd
 from pathlib import Path
 import numpy as np
@@ -7,28 +8,27 @@ from vessel_proj.preprocess_data import get_data_path, set_types_edge_list
 
 import logging
 from prefect import task
-from vessel_proj.preprocess_data import get_data_path, shaper_slow
+from vessel_proj.preprocess_data import get_data_path, shaper_slow, shaper
 
 logger = logging.getLogger('root')
 FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
 logging.basicConfig(format=FORMAT)
 
 
-#%%
+# %%
 @task
-def clean_visits(df, min_dur_sec=300, types_to_drop = ["fishing", "tug tow"]):
-        
+def clean_visits(df, min_dur_sec=300, types_to_drop=["fishing", "tug tow"]):
+
     inds = df["duration_seconds"] < min_dur_sec
     logger.info(f"Dropping {inds.sum()} rows for too low duration")
     df.drop(df[inds].index, inplace=True)
 
-    
     inds = df["vessel_category"].apply(lambda x: x in types_to_drop)
-    logger.info(f"Dropping {inds.sum()} rows because vessel type in {types_to_drop}")
+    logger.info(
+        f"Dropping {inds.sum()} rows because vessel type in {types_to_drop}")
     df.drop(df[inds].index, inplace=True)
 
-
-    # store 
+    # store
     file_path = get_data_path() / "interim" / 'visits-augmented-cleaned.parquet'
     df.to_parquet(file_path)
 
@@ -38,30 +38,33 @@ def clean_visits(df, min_dur_sec=300, types_to_drop = ["fishing", "tug tow"]):
 @task
 def create_and_save_edge_list_from_visits(df_visits, nrows=None):
 
-
-    output_file = get_data_path() / "raw" /'edge_list.parquet'
+    output_file = get_data_path() / "raw" / 'edge_list.parquet'
 
     if nrows is not None:
-        df_visits = df_visits[:nrows]            
+        df_visits = df_visits[:nrows]
         output_file = Path(output_file)
         no_suff_name = output_file.name.replace(output_file.suffix, '')
-        output_file = Path(output_file.parent) / ( f"{no_suff_name}_from_{nrows}_visits{output_file.suffix}"  )
+        output_file = Path(output_file.parent) / \
+            (f"{no_suff_name}_from_{nrows}_visits{output_file.suffix}")
 
+    df_edges = shaper(df_visits, output_file=output_file)
 
-    df_edges = shaper_slow(df_visits, output_file=output_file)
+    # df_edges_1 = shaper_slow(df_visits, output_file=output_file)
+    # pd.testing.assert_frame_equal(df_edges.reset_index().drop(columns="index"), df_edges_1.reset_index().drop(columns="index"))
 
     return df_edges
 
 
 @task
 def load_visits():
-    dir = get_data_path() / "raw" 
-    df_visits = pd.read_csv(dir / 'visits-augmented.csv')
-    df_visits.to_parquet(dir / 'visits-augmented.parquet')
+    dir = get_data_path() / "raw"
+    try:
+        df_visits = pd.read_parquet(dir / 'visits-augmented.parquet')
+    except FileNotFoundError:
+        df_visits = pd.read_csv(dir / 'visits-augmented.csv')
+        df_visits.to_parquet(dir / 'visits-augmented.parquet')
 
     return df_visits
-
-
 
 
 def clean_edges(df_edges: pd.DataFrame, min_dur_secs=300) -> pd.DataFrame:
@@ -85,19 +88,20 @@ def clean_edges(df_edges: pd.DataFrame, min_dur_secs=300) -> pd.DataFrame:
 
 
 def group_edges_per_vessel_category(df_edges: pd.DataFrame) -> pd.DataFrame:
-    #%% group trips
+    # %% group trips
     # count number of connections between each pairs of ports, avg duration, number of distinct vessels and types of vessels
 
-    count_unique = lambda x: np.unique(x).shape[0]
-    df_edges_per_vessel_category = df_edges.groupby(["start_port", "end_port", "vessel_category"], observed=True).agg(
+    def count_unique(x): return np.unique(x).shape[0]
+    df_edges_per_vessel_category = df_edges.groupby(["start_port", "end_port", "vessel_category"], observed=True)[["uid"]].agg(
         # duration_avg_days=("duration_days", np.mean),
         trips_count=("uid", count_unique),
     )
 
     return df_edges_per_vessel_category
 
+
 @task
-def aggregated_graph_from_edge_list(df_edges, min_dur_secs=300):
+def aggregated_graph_from_edge_list(df_edges, min_dur_secs=3600):
     """
     from list of voyages (edge_list), clean the graph, compute a set of centralities and log them as parquet
     """
@@ -110,22 +114,31 @@ def aggregated_graph_from_edge_list(df_edges, min_dur_secs=300):
 
     save_path = get_data_path() / "interim"
 
-    df_edges_per_vessel_category.to_parquet(save_path / "edge_list_aggregated.parquet")
+    df_edges_per_vessel_category.to_parquet(
+        save_path / "edge_list_aggregated.parquet")
     # pd.read_parquet(save_path / "edge_list_aggregated.parquet")
 
     return df_edges_per_vessel_category
-#%%
+# %%
+
+
 @flow
 def main():
 
-    df_visits = load_visits()
-
-    df_visits_cleaned = clean_visits(df_visits)
-
-    df_edges = create_and_save_edge_list_from_visits(df_visits_cleaned)
-
-    df_edges_per_vessel_category = aggregated_graph_from_edge_list(df_edges)
+    df_edges = pd.read_parquet(
+            get_data_path() / "raw" / 'edge_list.parquet')
     
+    df_visits = load_visits.fn()
+
+    df_visits_cleaned = clean_visits.fn(df_visits)
+
+    df_edges = create_and_save_edge_list_from_visits.fn(df_visits_cleaned)
+
+    df_edges_per_vessel_category = aggregated_graph_from_edge_list.fn(
+        df_edges, min_dur_secs=3600)
+
+
+
 if __name__ == '__main__':
     main()
 # %%
