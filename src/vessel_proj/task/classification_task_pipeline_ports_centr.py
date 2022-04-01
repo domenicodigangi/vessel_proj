@@ -320,7 +320,7 @@ def estimate_sage(train_test_X_y_in, model_name, sage_imputer, n_sage_perm):
     feat_names = list(X_train.columns)
     # experiment with sage, can be slow
 
-    model.fit(X_train, y_train)
+    model.fit(X_train.values, y_train.values)
     # Set up an imputer to handle missing features
     if sage_imputer == "MarginalImputer":
         imputer = sage.MarginalImputer(model, X_train)
@@ -534,9 +534,9 @@ def main(
         # "closeness_bin",
         # "betweenness_bin",
         "avg_rank_centr",
+        "avg_centr",
     ]
-    all_imputer_names = ["SimpleImputer()", "KNNImputer()",
-                         "IterativeImputer()"]
+    all_imputer_names = ["SimpleImputer()", "IterativeImputer()"]
     for vessel_category in all_vessel_category:
         for model_name in all_model_names:
             for yname in all_y_names:
