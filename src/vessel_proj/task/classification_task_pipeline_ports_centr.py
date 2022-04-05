@@ -101,6 +101,7 @@ def encode_features(
             X[col] = le.fit_transform(X[[col]])
 
     data["features"] = X
+    data["dropped_cols"] = df[cols_to_drop]
     return data
 
 
@@ -127,9 +128,8 @@ def select_and_discretize_target(data_in, yname, disc_strategy, log_of_target):
     df_centr = data["centralities"]
 
     df_merge = (
-        df_centr[yname]
-        .reset_index()
-        .merge(df_feat, how="left", left_on="index", right_on="INDEX_NO")
+        df_centr[[yname]]
+        .join(df_feat, how="left")
     )
 
     X = df_merge[df_feat.columns]
@@ -348,7 +348,8 @@ def estimate_sage(train_test_X_y_in, model_name, sage_imputer, n_sage_perm):
 
 
 @task
-def estimate_shap(train_test_X_y_in, model_name):
+def estimate_shap(data_in, yname, train_test_X_y_in, model_name, n_ports_shap=100):
+    data = {k: v for k, v in data_in.items()}
     train_test_X_y = {k: copy.deepcopy(v)
                       for k, v in train_test_X_y_in.items()}
 
@@ -362,9 +363,20 @@ def estimate_shap(train_test_X_y_in, model_name):
     # feat_name = "LONGITUDE"
 
     # compute the SHAP values for the linear model
-    explainer = shap.Explainer(model.predict, X_train)
-    shap_values = explainer(X_train)
+    X_all = (
+        pd.concat((X_train, X_test))
+    .join(data["dropped_cols"][["PORT_NAME"]])
+    .join(data["centralities"][[yname]])
+    .sort_values(by=yname, ascending=False)
+    )
+    X_for_shap = X_all.drop(columns=["PORT_NAME", yname])
 
+    explainer = shap.Explainer(model.predict, X_for_shap)
+    shap_values = explainer(X_for_shap)
+    df_shap = pd.DataFrame(shap_values.values, columns=shap_values.feature_names, index=X_for_shap.index).join(X_all[["PORT_NAME", yname]], how="left")
+    
+    
+    
     fig = plt.figure()
     shap.plots.beeswarm(shap_values, max_display=14)
     logwandb({"shap-swarm": wandb.Image(fig)})
@@ -377,8 +389,7 @@ def estimate_shap(train_test_X_y_in, model_name):
     shap.plots.heatmap(shap_values[:1000], max_display=14)
     logwandb({"shap-heat": wandb.Image(fig)})
 
-    shap_tab = wandb.Table(
-        columns=shap_values.feature_names, data=shap_values.values)
+    shap_tab = wandb.Table(dataframe=df_shap)
 
     logwandb({"shap_table": shap_tab})
 
@@ -455,7 +466,7 @@ def one_run(
             estimate_sage.fn(train_test_X_y, model_name,
                              sage_imputer, n_sage_perm)
 
-            estimate_shap.fn(train_test_X_y, model_name)
+            estimate_shap.fn(data, train_test_X_y, model_name)
 
         logger.info(f"FINISHED {run_pars}")
 
@@ -465,7 +476,7 @@ if False:
     vessel_category = "cargo"
     feat_names_non_cat = ["TIDE_RANGE", "LATITUDE", "LONGITUDE"]
     cols_to_drop = ["PORT_NAME", "REGION_NO", "PUB"]
-    yname = "page_rank_w_log_trips"
+    yname = "avg_rank_centr"
     model_name = "RandomForestClassifier(random_state=0)"
     run_sage = True
     n_sage_perm = None
