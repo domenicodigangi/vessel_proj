@@ -466,7 +466,7 @@ def one_run(
             estimate_sage.fn(train_test_X_y, model_name,
                              sage_imputer, n_sage_perm)
 
-            estimate_shap.fn(data, train_test_X_y, model_name)
+            estimate_shap.fn(data, yname, train_test_X_y, model_name)
 
         logger.info(f"FINISHED {run_pars}")
 
@@ -493,7 +493,7 @@ if False:
     imputer_missing = "IterativeImputer()"  # "SimpleImputer()"
     test_run_flag = True
     # disc_strategy = "kmeans_3"
-    disc_strategy = "top_100"
+    disc_strategy = "top_182"
     log_of_target = False
     miss_threshold = 0.5
 
@@ -547,7 +547,7 @@ def main(
         "avg_rank_centr",
         "avg_centr",
     ]
-    all_imputer_names = ["SimpleImputer()", "IterativeImputer()"]
+    all_imputer_names = ["IterativeImputer()"]
     for vessel_category in all_vessel_category:
         for model_name in all_model_names:
             for yname in all_y_names:

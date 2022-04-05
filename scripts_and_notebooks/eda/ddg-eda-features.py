@@ -37,10 +37,5 @@ df_enc[["CARGODEPTH"]]\
         .drop_duplicates()\
             .sort_values(by="CARGODEPTH_x")
 
-df_enc.val
-df_enc = drop_missing_cols.fn({"features": df_enc})["features"]
-
-
-df_enc.info()
-
 # %%
+df_enc["COMM_AIR"].dropna().value_counts()
