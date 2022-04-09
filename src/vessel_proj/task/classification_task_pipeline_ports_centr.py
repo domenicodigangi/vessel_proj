@@ -126,6 +126,7 @@ def select_and_discretize_target(data_in, yname, disc_strategy, log_of_target):
     data = {k: v for k, v in data_in.items()}
     df_feat = data["features"]
     df_centr = data["centralities"]
+    n_ports = df_centr.shape[0]
 
     df_merge = (
         df_centr[[yname]]
@@ -133,14 +134,15 @@ def select_and_discretize_target(data_in, yname, disc_strategy, log_of_target):
     )
 
     X = df_merge[df_feat.columns]
-
     target = df_merge[[yname]].rename(columns={yname: "continuous"})
     if log_of_target:
         target["continuous_original"] = target["continuous"]
         target["continuous"] = np.log10(target["continuous"])
 
     if disc_strategy.startswith("top_"):
-        n_top = int(disc_strategy.split("_")[-1])
+        n_top_pct = int(disc_strategy.split("_")[-1])
+        
+        n_top = int(np.round(n_ports * n_top_pct / 100))
         n_bins = 2
         target.sort_values(by="continuous", ascending=False, inplace=True)
         target["discrete"] = 0
@@ -159,7 +161,7 @@ def select_and_discretize_target(data_in, yname, disc_strategy, log_of_target):
     else:
         raise Exception()
 
-    logwandb({"n_bins": n_bins})
+    logwandb({"n_bins": n_bins, "n_top_ports": n_top})
 
     fig, ax = plt.subplots()
     g = sns.boxplot(target["discrete"], target["continuous"], ax=ax)
@@ -538,7 +540,7 @@ def main(
 ):
     all_vessel_category = ["cargo", "all"]
     all_model_names = [
-        "RandomForestClassifier(random_state=0)", "XGBClassifier()"]
+        "RandomForestClassifier(random_state=0)"]#, "XGBClassifier()"]
     all_y_names = [
         # "page_rank_bin",
         # "page_rank_w_log_trips",
@@ -554,7 +556,7 @@ def main(
                 for imputer_missing in all_imputer_names:
 
                     if disc_strategy.startswith("top_"):
-                        for k in [182, 363, 544]:
+                        for k in [5, 10, 15]:
                             if disc_strategy == "top_k":
                                 disc_strategy_run = f"top_{k}"
                             elif disc_strategy == "top_bottom_k":
