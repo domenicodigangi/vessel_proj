@@ -1,7 +1,7 @@
 # %%
 import pandas as pd
 from matplotlib import markers, pyplot as plt
-from vessel_proj.preprocess_data import get_latest_port_data_task, get_project_name, get_project_name, get_data_path, get_project_root
+from vessel_proj.preprocess_data import get_latest_port_data_task, get_project_name, get_project_name, get_data_path, get_project_root, get_wandb_root_path
 from vessel_proj.task.classification_task_pipeline_ports_centr import add_avg_centr
 import seaborn as sns
 sns.set_theme(style="darkgrid")
@@ -14,7 +14,7 @@ df_feat = data["features"]
 df_centr = data["centralities"]
 df_centr = add_avg_centr.fn(data)["centralities"]
 
-#%% tab avg_rank
+#%% Distribution avg_rank
 df = df_centr
 for col in ["avg_centr", "avg_rank_centr"]:
     df_tab = (df
@@ -39,6 +39,29 @@ for col in ["avg_centr", "avg_rank_centr"]:
         fig = ax.get_figure()
         fig.savefig(fig_fold / f"hist{col}.png") 
 
+
+#%% Table shap
+
+import wandb
+wandb.init()
+run_id = "n8xhfk0y"
+tab = wandb.use_artifact(f"digangidomenico/ports-feat-importance/run-{run_id}-shap_table:v0").get("shap_table")
+
+df_shap = pd.DataFrame([r for i, r in tab.iterrows()], columns=tab.columns)
+df_shap = df_shap.rename(columns={df_shap.columns[-1]: "Centrality"})
+# col_names = ["PORT_NAME", df_shap.columns[-1]]
+# [col_names.extend([c for c in df_shap.columns if c not in col_names ])]
+
+col_names = ["PORT_NAME", "Centrality", "LONGITUDE", "LATITUDE", "CARGODEPTH", "HARBORSIZE"]
+
+df_tab = (df_shap[:20][col_names]
+    .round(4)
+    .rename(columns={n: n.replace("_", "\\_") for n in col_names})
+    )
+tab_name = "shap_values"
+with open(tab_fold / f"{tab_name}.txt", "wt") as f:
+    df_tab.to_latex(buf=f, escape=False)
+    
 
 
 
