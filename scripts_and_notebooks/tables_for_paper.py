@@ -40,19 +40,27 @@ for col in ["avg_centr", "avg_rank_centr"]:
         fig.savefig(fig_fold / f"hist{col}.png") 
 
 
-#%% Table shap
+#%% Load SHAP run data
 
 import wandb
 wandb.init()
+tab_fold = get_project_root() / "reports" / "tables"
+
 run_id = "n8xhfk0y"
 tab = wandb.use_artifact(f"digangidomenico/ports-feat-importance/run-{run_id}-shap_table:v0").get("shap_table")
 
+#%% Create and save SHAP tab
 df_shap = pd.DataFrame([r for i, r in tab.iterrows()], columns=tab.columns)
 df_shap = df_shap.rename(columns={df_shap.columns[-1]: "Centrality"})
 # col_names = ["PORT_NAME", df_shap.columns[-1]]
 # [col_names.extend([c for c in df_shap.columns if c not in col_names ])]
 
-col_names = ["PORT_NAME", "Centrality", "LONGITUDE", "LATITUDE", "CARGODEPTH", "HARBORSIZE"]
+df_shap["Top_2_Feat_SHAP"] = df_shap.drop(columns=["PORT_NAME", "Centrality"]).apply(lambda s: ", ".join(s.abs().nlargest(2).index.tolist()).replace("_", "\\_"), axis=1)
+
+# df_shap["min_shap"] = df_shap.drop(columns=["PORT_NAME", "Centrality", "max_shap"]).idxmin(axis=1)
+
+
+col_names = ["PORT_NAME", "Centrality", "Top_2_Feat_SHAP"]
 
 df_tab = (df_shap[:20][col_names]
     .round(4)
@@ -75,8 +83,8 @@ def make_and_save_latex_tab_sage_imp(df, tab_name, col_names):
                 for c in df.columns if c.startswith("sage_mean")]
     df_mean = df[["disc_strategy"] + [c for c in df.columns if c.startswith(
         "sage_mean")]].rename(columns={f"sage_mean_{n}": n for n in features})
-    df_std = df[["disc_strategy"] + [c for c in df.columns if c.startswith(
-        "sage_std")]].rename(columns={f"sage_std_{n}": n for n in features})
+    # df_std = df[["disc_strategy"] + [c for c in df.columns if c.startswith(
+    #     "sage_std")]].rename(columns={f"sage_std_{n}": n for n in features})
 
     features = df_mean.mean(axis=0).sort_values(
         ascending=False).index.to_list()
@@ -84,8 +92,10 @@ def make_and_save_latex_tab_sage_imp(df, tab_name, col_names):
     df_tab = pd.DataFrame()
 
     for n in features:
-        df_tab[n] = df_mean[n].apply(lambda x: "$ {:5.1g}".format(x)).str.cat(
-            df_std[n].apply(lambda x: "{:5.1g} $".format(1.6*x)), sep=" \pm ")
+        df_tab[n] = df_mean[n].apply(lambda x: "$ {:5.1g}".format(x))
+
+        # df_tab[n] = df_mean[n].apply(lambda x: "$ {:5.1g}".format(x)).str.cat(
+        #     df_std[n].apply(lambda x: "{:5.1g} $".format(1.6*x)), sep=" \pm ")
 
     df_tab = df_tab.rename(
         columns={n: n.replace("_", "\\_") for n in features})
@@ -100,7 +110,7 @@ def make_and_save_latex_tab_sage_imp(df, tab_name, col_names):
 
 # %% top 5, 10, 15 %
 df = pd.read_csv(get_data_path() / "processed" /
-                 "sage_top_5_10_15_wandb_export_2022-02-16T09_59_39.163+01_00.csv")
+                 "sage_top_5_10_15_wandb_export_2022-04-13T17_59_52.595+02_00.csv")
 
 make_and_save_latex_tab_sage_imp(
     df, "tab_top_pct", ["5 pct", "10 pct", "15 pct"])
