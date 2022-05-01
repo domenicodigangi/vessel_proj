@@ -20,45 +20,6 @@ _proj_name = os.environ.get('wandb_proj_name')
 _wandb_entity = os.environ.get('wandb_entity')
 
 
-def create_data_fold_structure(project_dir):
-    logger.info(f"Creating data folder structure in {project_dir}")
-    Path.mkdir(project_dir / "data", exist_ok=True)
-    Path.mkdir(project_dir / "data" / "raw", exist_ok=True)
-    Path.mkdir(project_dir / "data" / "processed", exist_ok=True)
-    Path.mkdir(project_dir / "data" / "interim", exist_ok=True)
-    Path.mkdir(project_dir / "data" / "external", exist_ok=True)
-
-
-def get_project_name():
-    return _proj_name
-
-
-def get_wandb_entity():
-    return _wandb_entity
-
-
-def get_project_root():
-    return Path(__file__).parent.parent.parent.parent
-
-
-def get_data_path():
-    proj_root = get_project_root()
-    data_path = proj_root / "data"
-    return data_path
-
-
-def get_wandb_root_path():
-    root_path = get_data_path() / "root_wandb"
-    root_path.mkdir(exist_ok=True, parents=True)
-    return root_path
-
-
-def get_artifacts_path():
-    art_path = get_wandb_root_path() / "artifacts"
-    art_path.mkdir(exist_ok=True)
-    return art_path
-
-
 def get_one_file_from_artifact(name, run=None, type=None):
 
     if run is not None:
@@ -159,7 +120,8 @@ def shaper(df_visits, output_file=None):
         dfg["end_date"] = dfg["start"].shift(-1)
         dfg["duration"] = dfg["end_date"] - dfg["start_date"]
 
-        df_app = dfg.reset_index()[['start_port', 'start_region', 'start_port_name', 'start_date', 'end_port', 'end_region', 'end_port_name', 'end_date', 'duration', 'mmsi', 'uid', 'vesseltype', 'vessel_category']]
+        df_app = dfg.reset_index()[['start_port', 'start_region', 'start_port_name', 'start_date', 'end_port',
+                                    'end_region', 'end_port_name', 'end_date', 'duration', 'mmsi', 'uid', 'vesseltype', 'vessel_category']]
 
         l.append(df_app[:-1])
 

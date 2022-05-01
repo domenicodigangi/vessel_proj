@@ -5,7 +5,7 @@ import networkx as nx
 from prefect import task
 import logging
 from timer import get_timer
-from vessel_proj.preprocess_data import get_data_path
+from vessel_proj.utils import get_data_path
 
 logger = logging.getLogger("root")
 FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
@@ -95,15 +95,15 @@ def get_centralities(G: nx.DiGraph) -> pd.DataFrame:
     df_centr["centr_eig_w_trips"] = pd.DataFrame.from_dict(
         nx.eigenvector_centrality_numpy(G, weight="trips_count"), orient="index"
     ).iloc[:, 0]
-    
+
     df_centr["degree_in"] = pd.DataFrame.from_dict(
         nx.in_degree_centrality(G), orient="index"
     ).iloc[:, 0]
-    
+
     df_centr["degree_out"] = pd.DataFrame.from_dict(
-            nx.out_degree_centrality(G), orient="index"
-        ).iloc[:, 0]
-    
+        nx.out_degree_centrality(G), orient="index"
+    ).iloc[:, 0]
+
     df_centr["centr_eig_w_log_trips"] = pd.DataFrame.from_dict(
         nx.eigenvector_centrality_numpy(G, weight="log_trips_count"), orient="index"
     ).iloc[:, 0]

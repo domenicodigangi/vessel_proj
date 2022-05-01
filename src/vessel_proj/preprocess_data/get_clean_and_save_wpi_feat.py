@@ -3,7 +3,7 @@
 import pandas as pd
 from matplotlib import pyplot as plt
 from pathlib import Path
-from vessel_proj.preprocess_data import get_data_path
+from vessel_proj.utils import get_data_path
 import geopandas as gpd
 from prefect import task
 import requests

@@ -4,11 +4,11 @@ from prefect.deployments import DeploymentSpec
 import pandas as pd
 from pathlib import Path
 import numpy as np
-from vessel_proj.preprocess_data import get_data_path, set_types_edge_list
+from vessel_proj.utils import get_data_path
 
 import logging
 from prefect import task
-from vessel_proj.preprocess_data import get_data_path, shaper_slow, shaper
+from vessel_proj.preprocess_data import set_types_edge_list, shaper
 
 logger = logging.getLogger('root')
 FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
@@ -126,8 +126,8 @@ def aggregated_graph_from_edge_list(df_edges, min_dur_secs=3600):
 def main():
 
     df_edges = pd.read_parquet(
-            get_data_path() / "raw" / 'edge_list.parquet')
-    
+        get_data_path() / "raw" / 'edge_list.parquet')
+
     df_visits = load_visits()
 
     df_visits_cleaned = clean_visits(df_visits)
@@ -136,7 +136,6 @@ def main():
 
     df_edges_per_vessel_category = aggregated_graph_from_edge_list(
         df_edges, min_dur_secs=3600)
-
 
 
 if __name__ == '__main__':

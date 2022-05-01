@@ -4,6 +4,8 @@ from torch_geometric.nn import GCNConv
 import torch.nn.functional as F
 import torch
 from vessel_proj.preprocess_data.gnn import get_graph_from_saved_data, get_train_mask
+import mlflow
+from dotenv import load_dotenv
 
 
 # %%
@@ -13,6 +15,7 @@ graph.x
 n = 1000
 
 graph.train_mask, graph.test_mask = get_train_mask(graph.x.shape[0])
+mlflow.set_tracking_uri()
 
 
 class GCN(torch.nn.Module):

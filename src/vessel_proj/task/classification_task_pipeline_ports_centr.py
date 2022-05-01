@@ -1,41 +1,33 @@
 # %%
-from sklearn.base import ClassifierMixin
 from prefect import task, flow
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler
 from argh import arg
 import argh
 import sage
-from xgboost import XGBClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer
 from sklearn.preprocessing import KBinsDiscretizer
-from sklearn.metrics import make_scorer, plot_roc_curve
+from sklearn.metrics import plot_roc_curve
 from sklearn.inspection import permutation_importance
 import wandb
 import shap
 from vessel_proj.utils import catch_all_and_log
-from vessel_proj.preprocess_data import (
+from vessel_proj.utils import (
     get_project_name,
-    get_wandb_entity,
-    get_wandb_root_path,
-    get_latest_port_data_task,
+    get_wandb_root_path
 )
+from vessel_proj.preprocess_data import get_latest_port_data_task
 import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
 import logging
 import time
 import copy
-from pathlib import Path
 from sklearn.model_selection import train_test_split
 from sklearn import preprocessing
 import sklearn
-from sklearn import metrics
 
 from sklearn.model_selection import train_test_split
-from sklearn.utils.class_weight import compute_class_weight
 
 from sklearn.exceptions import ConvergenceWarning
 import warnings
@@ -141,7 +133,7 @@ def select_and_discretize_target(data_in, yname, disc_strategy, log_of_target):
 
     if disc_strategy.startswith("top_"):
         n_top_pct = int(disc_strategy.split("_")[-1])
-        
+
         n_top = int(np.round(n_ports * n_top_pct / 100))
         n_bins = 2
         target.sort_values(by="continuous", ascending=False, inplace=True)
@@ -367,18 +359,17 @@ def estimate_shap(data_in, yname, train_test_X_y_in, model_name, n_ports_shap=10
     # compute the SHAP values for the linear model
     X_all = (
         pd.concat((X_train, X_test))
-    .join(data["dropped_cols"][["PORT_NAME"]])
-    .join(data["centralities"][[yname]])
-    .sort_values(by=yname, ascending=False)
+        .join(data["dropped_cols"][["PORT_NAME"]])
+        .join(data["centralities"][[yname]])
+        .sort_values(by=yname, ascending=False)
     )
     X_for_shap = X_all.drop(columns=["PORT_NAME", yname])
 
     explainer = shap.Explainer(model.predict, X_for_shap)
     shap_values = explainer(X_for_shap)
-    df_shap = pd.DataFrame(shap_values.values, columns=shap_values.feature_names, index=X_for_shap.index).join(X_all[["PORT_NAME", yname]], how="left")
-    
-    
-    
+    df_shap = pd.DataFrame(shap_values.values, columns=shap_values.feature_names,
+                           index=X_for_shap.index).join(X_all[["PORT_NAME", yname]], how="left")
+
     fig = plt.figure()
     shap.plots.beeswarm(shap_values, max_display=14)
     logwandb({"shap-swarm": wandb.Image(fig)})
@@ -540,7 +531,7 @@ def main(
 ):
     all_vessel_category = ["cargo", "all"]
     all_model_names = [
-        "RandomForestClassifier(random_state=0)"]#, "XGBClassifier()"]
+        "RandomForestClassifier(random_state=0)"]  # , "XGBClassifier()"]
     all_y_names = [
         # "page_rank_bin",
         # "page_rank_w_log_trips",
