@@ -1,0 +1,26 @@
+\begin{tabular}{llrl}
+\toprule
+{} &                   PORT\_NAME &  Centrality &       Top\_2\_Feat\_SHAP \\
+\midrule
+0  &    KEPPEL - (EAST SINGAPORE) &     10.3635 &    LONGITUDE, CARGODEPTH \\
+1  &                 EUROPA POINT &      8.3809 &   HARBORSIZE, DRTYBALLST \\
+2  &             PUERTO CRISTOBAL &      7.0359 &   HARBORSIZE, HARBORTYPE \\
+3  &                        CEUTA &      6.6109 &    LONGITUDE, REPAIRCODE \\
+4  &                    VACAMONTE &      6.5765 &      LONGITUDE, LATITUDE \\
+5  &                   LAS PALMAS &      5.7761 &    LATITUDE, CHAN\_DEPTH \\
+6  &  AL ISKANDARIYH (ALEXANDRIA) &      4.8469 &  REPAIRCODE, COMM\_PHONE \\
+7  &                  KATSUNAN KO &      4.7941 &      LONGITUDE, LATITUDE \\
+8  &                   EL-ADABIYA &      4.7352 &      LATITUDE, LONGITUDE \\
+9  &                       DURBAN &      4.4557 &        LATITUDE, COUNTRY \\
+10 &                       GRESIK &      4.4525 &      LATITUDE, LONGITUDE \\
+11 &                      JAKARTA &      4.3164 &      LONGITUDE, LATITUDE \\
+12 &                   CASABLANCA &      4.1932 &    HARBORSIZE, LONGITUDE \\
+13 &                       SANTOS &      4.0850 &      LATITUDE, LONGITUDE \\
+14 &                       BANTEN &      3.7932 &      LONGITUDE, LATITUDE \\
+15 &                     DAMIETTA &      3.6313 &      LATITUDE, LONGITUDE \\
+16 &                 TONGUE POINT &      3.3919 &      LONGITUDE, LATITUDE \\
+17 &                       ZARATE &      3.3827 &      LATITUDE, LONGITUDE \\
+18 &                   LONG BEACH &      3.3592 &      LATITUDE, LONGITUDE \\
+19 &                      VITORIA &      3.2280 &    LATITUDE, ENTRY\_TIDE \\
+\bottomrule
+\end{tabular}
