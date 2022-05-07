@@ -1,1 +1,4 @@
 
+[submodule "src/vessel_proj/ds_utils"]
+	path = src/vessel_proj/ds_utils
+	url = https://github.com/domenicodigangi/ds_utils.git
