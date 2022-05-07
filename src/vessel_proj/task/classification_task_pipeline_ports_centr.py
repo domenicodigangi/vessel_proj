@@ -5,6 +5,7 @@ from sklearn.preprocessing import StandardScaler
 from argh import arg
 import argh
 import sage
+from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer
 from sklearn.preprocessing import KBinsDiscretizer
 from sklearn.metrics import plot_roc_curve

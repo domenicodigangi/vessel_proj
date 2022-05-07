@@ -1,6 +1,6 @@
-export MLFLOW_TRACKING_URI=127.0.0.1:8899
-export MLFLOW_BACKEND_STORE_URI=/data/digiandomenico/vessel_proj/data/mlflow/backend/
-export MLFLOW_ARTIFACT_ROOT=/data/digiandomenico/vessel_proj/data/mlflow/artifact/
+set -o allexport
+source vessel_proj.env
+set +o allexport
 
 mlflow ui --port 5001 &
 
