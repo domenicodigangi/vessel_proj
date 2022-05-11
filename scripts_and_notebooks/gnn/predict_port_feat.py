@@ -5,7 +5,8 @@ import torch.nn.functional as F
 import torch
 from vessel_proj.preprocess_data.gnn import get_graph_from_saved_data, get_train_mask
 import mlflow
-from vessel_proj.utils import set_mlflow
+from vessel_proj.ds_utils import set_mlflow
+from vessel_proj.ds_utils.torch.opt import optimize_torch_obj_fun
 
 
 EXPERIMENT_VERSION = "test"

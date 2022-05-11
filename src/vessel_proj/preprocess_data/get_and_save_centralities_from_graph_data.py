@@ -5,7 +5,7 @@ import networkx as nx
 from prefect import task
 import logging
 from timer import get_timer
-from vessel_proj.utils import get_data_path
+from vessel_proj.ds_utils import get_data_path
 
 logger = logging.getLogger("root")
 FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"

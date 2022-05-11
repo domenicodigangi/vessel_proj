@@ -2,7 +2,7 @@
 import wandb
 import pandas as pd
 from matplotlib import markers, pyplot as plt
-from vessel_proj.utils import get_latest_port_data_task, get_project_name, get_data_path, get_project_root
+from vessel_proj.ds_utils import get_latest_port_data_task, get_project_name, get_data_path, get_project_root
 from vessel_proj.task.classification_task_pipeline_ports_centr import add_avg_centr
 import seaborn as sns
 sns.set_theme(style="darkgrid")

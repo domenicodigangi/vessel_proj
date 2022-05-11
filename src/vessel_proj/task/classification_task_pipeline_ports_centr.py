@@ -12,10 +12,10 @@ from sklearn.metrics import plot_roc_curve
 from sklearn.inspection import permutation_importance
 import wandb
 import shap
-from vessel_proj.utils import catch_all_and_log
-from vessel_proj.utils import (
+from vessel_proj.ds_utils import (
     get_project_name,
-    get_wandb_root_path
+    catch_all_and_log,
+    get_wandb_root_path,
 )
 from vessel_proj.preprocess_data import get_latest_port_data_task
 import pandas as pd

@@ -4,7 +4,7 @@ from vessel_proj.preprocess_data import get_latest_port_data
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from vessel_proj.utils import get_project_name, get_wandb_root_path
+from vessel_proj.ds_utils import get_project_name, get_wandb_root_path
 import wandb
 import seaborn as sns
 sns.set_theme(style="darkgrid")

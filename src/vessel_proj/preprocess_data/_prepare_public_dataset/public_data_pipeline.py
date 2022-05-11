@@ -4,7 +4,7 @@ from prefect.deployments import DeploymentSpec
 import pandas as pd
 from pathlib import Path
 import numpy as np
-from vessel_proj.utils import get_data_path
+from vessel_proj.ds_utils import get_data_path
 
 import logging
 from prefect import task
