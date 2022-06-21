@@ -1,4 +1,3 @@
-
 # %%
 from torch_geometric.nn import GCNConv
 import torch.nn.functional as F
@@ -38,6 +37,7 @@ def get_accuracy(model, data):
     model.train()
     return acc
 
+
 # %%
 
 
@@ -58,11 +58,10 @@ with mlflow.start_run(experiment_id=experiment.experiment_id):
 
     graph.train_mask, graph.test_mask = get_train_mask(graph.x.shape[0])
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = GCN().to(device)
     data = graph.to(device)
-    optimizer = torch.optim.Adam(
-        model.parameters(), lr=0.01, weight_decay=5e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=5e-4)
 
     model.train()
     for epoch in range(200):
@@ -72,7 +71,7 @@ with mlflow.start_run(experiment_id=experiment.experiment_id):
         loss.backward()
         optimizer.step()
         acc = get_accuracy(model, data)
-        print(f'Accuracy: {acc:.4f}')
+        print(f"Accuracy: {acc:.4f}")
 # %%
 # %%
 with mlflow.start_run(run_id=parent_run.info.run_id, nested=True):
@@ -127,13 +126,9 @@ with mlflow.start_run(run_id=parent_run.info.run_id, nested=True):
                         use_lag_mat_as_reg=use_lag_mat_as_reg,
                     )
                 else:
-                    mod_dgp.sample_and_set_Y_T(
-                        use_lag_mat_as_reg=use_lag_mat_as_reg
-                    )
+                    mod_dgp.sample_and_set_Y_T(use_lag_mat_as_reg=use_lag_mat_as_reg)
 
-                torch.save(
-                    run_data_dict["Y_reference"], dgp_fold / "Y_reference.pt"
-                )
+                torch.save(run_data_dict["Y_reference"], dgp_fold / "Y_reference.pt")
                 torch.save(
                     (mod_dgp.get_Y_T_to_save(), mod_dgp.X_T),
                     dgp_fold / "obs_T_dgp.pt",
@@ -155,9 +150,7 @@ with mlflow.start_run(run_id=parent_run.info.run_id, nested=True):
                 # k_filt, mod = list(filt_models.items())[0]
                 for k_filt, mod_filt in filt_models.items():
 
-                    _, h_par_opt, stats_opt = mod_filt.estimate(
-                        tb_save_fold=tb_fold
-                    )
+                    _, h_par_opt, stats_opt = mod_filt.estimate(tb_save_fold=tb_fold)
 
                     mlflow.log_params(
                         {
@@ -234,8 +227,7 @@ with mlflow.start_run(run_id=parent_run.info.run_id, nested=True):
                     if mod_filt.beta_T is not None:
                         if mod_filt.any_beta_tv():
                             mlflow.log_figure(
-                                mod_filt.plot_beta_T(
-                                    fig_ax=plot_dgp_fig_ax)[0],
+                                mod_filt.plot_beta_T(fig_ax=plot_dgp_fig_ax)[0],
                                 f"fig/{bin_or_w}_{k_filt}_filt_beta_T.png",
                             )
 
