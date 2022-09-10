@@ -93,3 +93,5 @@ data/external/
 
 # weights and biases
 *wandb/
+
+*secrets.env
