@@ -49,7 +49,7 @@ mlflow.set_experiment(experiment_name)
 # Get Experiment Details
 experiment = mlflow.get_experiment_by_name(experiment_name)
 
-with mlflow.start_run(experiment_id=experiment.experiment_id):
+with mlflow.start_run(experiment_id=experiment.experiment_id) as run:
 
     graph = get_graph_from_saved_data()
     graph.num_classes = graph.y.unique().shape[0]
@@ -64,7 +64,7 @@ with mlflow.start_run(experiment_id=experiment.experiment_id):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=5e-4)
 
     model.train()
-    for epoch in range(200):
+    for epoch in range(1000):
         optimizer.zero_grad()
         out = model(data)
         loss = F.nll_loss(out[data.train_mask, :], data.y[data.train_mask])
@@ -85,59 +85,27 @@ with mlflow.start_run(run_id=parent_run.info.run_id, nested=True):
 
             # set artifacts folders and subfolders
             tmp_path = Path(tmpdirname)
-            dgp_fold = tmp_path / "dgp"
-            dgp_fold.mkdir(exist_ok=True)
             tb_fold = tmp_path / "tb_logs"
             tb_fold.mkdir(exist_ok=True)
 
             mlflow.log_params(parent_runs_par)
-            bin_or_w, mod_dgp = list(mod_dgp_dict.items())[0]
-            for bin_or_w, mod_dgp in mod_dgp_dict.items():
-                mlflow.log_params(
-                    {
-                        f"dgp_{bin_or_w}_{key}": val
-                        for key, val in run_par_dict[f"dgp_par_{bin_or_w}"].items()
-                    }
-                )
-                mlflow.log_params(
-                    {
-                        f"filt_{bin_or_w}_{key}": val
-                        for key, val in run_par_dict[f"filt_par_{bin_or_w}"].items()
-                    }
-                )
-                logger.info(f" start estimates {bin_or_w}")
-                if parent_runs_par["use_lag_mat_as_reg"]:
-                    if mod_dgp.X_T.shape[2] != 1:
-                        raise Exception(" multiple lags not ready yet")
-                    logger.info("Using lagged adjacency matrix as regressor")
-                    use_lag_mat_as_reg = True
-                else:
-                    use_lag_mat_as_reg = False
+            mlflow.log_params(
+                {
+                    f"dgp_{bin_or_w}_{key}": val
+                    for key, val in run_par_dict[f"dgp_par_{bin_or_w}"].items()
+                }
+            )
 
-                # sample obs from dgp and save data
-                if hasattr(mod_dgp, "bin_mod"):
-                    if mod_dgp.bin_mod.Y_T.sum() == 0:
-                        mod_dgp.bin_mod.sample_and_set_Y_T(
-                            use_lag_mat_as_reg=use_lag_mat_as_reg
-                        )
-
-                    mod_dgp.sample_and_set_Y_T(
-                        A_T=mod_dgp.bin_mod.Y_T,
-                        use_lag_mat_as_reg=use_lag_mat_as_reg,
-                    )
-                else:
-                    mod_dgp.sample_and_set_Y_T(use_lag_mat_as_reg=use_lag_mat_as_reg)
-
-                torch.save(run_data_dict["Y_reference"], dgp_fold / "Y_reference.pt")
-                torch.save(
-                    (mod_dgp.get_Y_T_to_save(), mod_dgp.X_T),
-                    dgp_fold / "obs_T_dgp.pt",
+            torch.save(run_data_dict["Y_reference"], dgp_fold / "Y_reference.pt")
+            torch.save(
+                (mod_dgp.get_Y_T_to_save(), mod_dgp.X_T),
+                dgp_fold / "obs_T_dgp.pt",
+            )
+            mod_dgp.save_parameters(save_path=dgp_fold)
+            if mod_dgp.phi_T is not None:
+                mlflow.log_figure(
+                    mod_dgp.plot_phi_T()[0], f"fig/{bin_or_w}_dgp_all.png"
                 )
-                mod_dgp.save_parameters(save_path=dgp_fold)
-                if mod_dgp.phi_T is not None:
-                    mlflow.log_figure(
-                        mod_dgp.plot_phi_T()[0], f"fig/{bin_or_w}_dgp_all.png"
-                    )
 
                 # estimate models and log parameters and hpar optimization
                 filt_models = get_filt_mod(

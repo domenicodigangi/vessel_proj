@@ -1,5 +1,6 @@
 from pathlib import Path
 import logging
+from typing import Optional
 import pandas as pd
 from tqdm import tqdm
 import logging
@@ -9,6 +10,7 @@ from types import SimpleNamespace
 from prefect import task
 from dotenv import load_dotenv
 import os
+from vessel_proj.ds_utils import get_data_path
 
 
 logger = logging.getLogger()
@@ -16,8 +18,8 @@ logger.setLevel(logging.INFO)
 
 
 load_dotenv()
-_proj_name = os.environ.get('wandb_proj_name')
-_wandb_entity = os.environ.get('wandb_entity')
+_proj_name = os.environ.get("wandb_proj_name")
+_wandb_entity = os.environ.get("wandb_entity")
 
 
 def get_one_file_from_artifact(name, run=None, type=None):
@@ -33,7 +35,8 @@ def get_one_file_from_artifact(name, run=None, type=None):
 
     try:
         artifact_dir = artifact.download(
-            root=get_wandb_root_path() / artifact._default_root())
+            root=get_wandb_root_path() / artifact._default_root()
+        )
         d["artifact_dir"] = artifact_dir
     except:
         pass
@@ -52,35 +55,38 @@ def get_one_file_from_artifact(name, run=None, type=None):
 
 def shaper_slow(df_visits, output_file=None):
     """
-     Convert df of time stamped vessel visits to ports to links, using a for loop over the groups of visits for each vessel
+    Convert df of time stamped vessel visits to ports to links, using a for loop over the groups of visits for each vessel
 
     """
 
-    df_visits['start'] = pd.to_datetime(df_visits['start'])
-    df_visits['end'] = pd.to_datetime(df_visits['end'])
+    df_visits["start"] = pd.to_datetime(df_visits["start"])
+    df_visits["end"] = pd.to_datetime(df_visits["end"])
 
     l = []
-    groups = df_visits.groupby('uid')
+    groups = df_visits.groupby("uid")
 
     for name, dfg in tqdm(groups, desc="Computing edge lists", position=0, leave=True):
         for i in range(0, len(dfg)):
 
-            if i+1 < len(dfg):
-                l.append({'start_port': dfg.iloc[i].port,
-                          'start_region': dfg.iloc[i].region,
-                          'start_port_name': dfg.iloc[i].port_name,
-                          'start_date': dfg.iloc[i].end,
-                          'end_port': dfg.iloc[i+1].port,
-                          'end_region': dfg.iloc[i+1].region,
-                          'end_port_name': dfg.iloc[i+1].port_name,
-                          'end_date': dfg.iloc[i+1].start,
-                          'duration': dfg.iloc[i+1].start - dfg.iloc[i].end,
-                          'mmsi': dfg.iloc[i].mmsi,
-                          'uid': dfg.iloc[i].uid,
-                          # 'cargo':dfg.iloc[i].cargo,
-                          'vesseltype': dfg.iloc[i].vesseltype,
-                          'vessel_category': dfg.iloc[i].vessel_category,
-                          })
+            if i + 1 < len(dfg):
+                l.append(
+                    {
+                        "start_port": dfg.iloc[i].port,
+                        "start_region": dfg.iloc[i].region,
+                        "start_port_name": dfg.iloc[i].port_name,
+                        "start_date": dfg.iloc[i].end,
+                        "end_port": dfg.iloc[i + 1].port,
+                        "end_region": dfg.iloc[i + 1].region,
+                        "end_port_name": dfg.iloc[i + 1].port_name,
+                        "end_date": dfg.iloc[i + 1].start,
+                        "duration": dfg.iloc[i + 1].start - dfg.iloc[i].end,
+                        "mmsi": dfg.iloc[i].mmsi,
+                        "uid": dfg.iloc[i].uid,
+                        # 'cargo':dfg.iloc[i].cargo,
+                        "vesseltype": dfg.iloc[i].vesseltype,
+                        "vessel_category": dfg.iloc[i].vessel_category,
+                    }
+                )
 
     df_edges = pd.DataFrame(data=l)
 
@@ -98,13 +104,13 @@ def shaper_slow(df_visits, output_file=None):
 
 def shaper(df_visits, output_file=None):
     """
-     Convert df of time stamped vessel visits to ports to links, using a for loop over the groups of visits for each vessel
+    Convert df of time stamped vessel visits to ports to links, using a for loop over the groups of visits for each vessel
 
     """
 
-    df_visits['start'] = pd.to_datetime(df_visits['start'])
-    df_visits['end'] = pd.to_datetime(df_visits['end'])
-    groups = df_visits.groupby('uid')
+    df_visits["start"] = pd.to_datetime(df_visits["start"])
+    df_visits["end"] = pd.to_datetime(df_visits["end"])
+    groups = df_visits.groupby("uid")
 
     l = []
     for name, dfg in tqdm(groups, desc="Computing edge lists", position=0, leave=True):
@@ -120,8 +126,23 @@ def shaper(df_visits, output_file=None):
         dfg["end_date"] = dfg["start"].shift(-1)
         dfg["duration"] = dfg["end_date"] - dfg["start_date"]
 
-        df_app = dfg.reset_index()[['start_port', 'start_region', 'start_port_name', 'start_date', 'end_port',
-                                    'end_region', 'end_port_name', 'end_date', 'duration', 'mmsi', 'uid', 'vesseltype', 'vessel_category']]
+        df_app = dfg.reset_index()[
+            [
+                "start_port",
+                "start_region",
+                "start_port_name",
+                "start_date",
+                "end_port",
+                "end_region",
+                "end_port_name",
+                "end_date",
+                "duration",
+                "mmsi",
+                "uid",
+                "vesseltype",
+                "vessel_category",
+            ]
+        ]
 
         l.append(df_app[:-1])
 
@@ -140,33 +161,51 @@ def shaper(df_visits, output_file=None):
 
 
 def set_types_edge_list(df_edges):
-    df_edges["duration_days"] = df_edges["duration_seconds"]/(60*60*24)
-    df_edges["vesseltype"] = df_edges["vesseltype"].astype('category')
-    df_edges["vessel_category"] = df_edges["vessel_category"].astype(
-        'category')
-    df_edges["start_port"] = df_edges["start_port"].astype('category')
-    df_edges["end_port"] = df_edges["end_port"].astype(
-        df_edges["start_port"].dtype)
-    df_edges["start_port_name"] = df_edges["start_port_name"].astype(
-        'category')
+    df_edges["duration_days"] = df_edges["duration_seconds"] / (60 * 60 * 24)
+    df_edges["vesseltype"] = df_edges["vesseltype"].astype("category")
+    df_edges["vessel_category"] = df_edges["vessel_category"].astype("category")
+    df_edges["start_port"] = df_edges["start_port"].astype("category")
+    df_edges["end_port"] = df_edges["end_port"].astype(df_edges["start_port"].dtype)
+    df_edges["start_port_name"] = df_edges["start_port_name"].astype("category")
     df_edges["end_port_name"] = df_edges["end_port_name"].astype(
-        df_edges["start_port_name"].dtype)
-    df_edges["start_region"] = df_edges["start_region"].astype('category')
-    df_edges["end_region"] = df_edges["end_region"].astype(
-        df_edges["end_region"].dtype)
-    df_edges["mmsi"] = df_edges["mmsi"].astype('category')
-    df_edges["uid"] = df_edges["uid"].astype('category')
+        df_edges["start_port_name"].dtype
+    )
+    df_edges["start_region"] = df_edges["start_region"].astype("category")
+    df_edges["end_region"] = df_edges["end_region"].astype(df_edges["end_region"].dtype)
+    df_edges["mmsi"] = df_edges["mmsi"].astype("category")
+    df_edges["uid"] = df_edges["uid"].astype("category")
     return df_edges
 
 
 @task
 def get_latest_port_data_task(vessel_category, load_path=None):
-    if load_path is None:
-        load_path = get_data_path() / "processed"
 
     data = {
-        "centralities": pd.read_parquet(load_path / f"centralities-ports-{vessel_category}.parquet"),
-        "features": pd.read_parquet(load_path / "ports_features.parquet")
+        "centralities": get_latest_port_centralities(vessel_category, load_path),
+        "features": get_latest_port_features(load_path),
     }
 
     return data
+
+
+def get_latest_port_centralities(
+    vessel_category, load_path: Optional[Path] = None
+) -> pd.DataFrame:
+    if load_path is None:
+        load_path = get_data_path() / "processed"
+
+    centralities = pd.read_parquet(
+        load_path / f"centralities-ports-{vessel_category}.parquet"
+    )
+
+    return centralities
+
+
+def get_latest_port_features(load_path: Optional[Path] = None) -> pd.DataFrame:
+
+    if load_path is None:
+        load_path = get_data_path() / "processed"
+
+    features = pd.read_parquet(load_path / f"ports_features.parquet")
+
+    return features

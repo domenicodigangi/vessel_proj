@@ -1,4 +1,5 @@
 # %%
+from typing import Dict, List, Optional
 from prefect import task, flow
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler
@@ -56,11 +57,18 @@ def add_avg_centr(data_in):
     df_centr = data["centralities"]
     # add avg of different measures
     scaler = StandardScaler()
-    df = df_centr[["degree_in", "degree_out", "page_rank_bin", "page_rank_w_log_trips",
-                   "closeness_bin", "betweenness_bin"]
-                  ]
+    df = df_centr[
+        [
+            "degree_in",
+            "degree_out",
+            "page_rank_bin",
+            "page_rank_w_log_trips",
+            "closeness_bin",
+            "betweenness_bin",
+        ]
+    ]
     nports = df_centr.shape[0]
-    df_centr["avg_rank_centr"] = df.rank().mean(axis=1)/nports
+    df_centr["avg_rank_centr"] = df.rank().mean(axis=1) / nports
     df_centr["avg_centr"] = scaler.fit_transform(df).mean(axis=1)
 
     data["centralities"] = df_centr
@@ -70,37 +78,46 @@ def add_avg_centr(data_in):
 
 @task
 def encode_features(
-    data_in, feat_names_non_cat, cols_to_drop,
+    data_in: Dict,
+    feat_names_non_cat: List[str],
+    cols_to_drop: List[str],
 ):
 
     data = {k: v for k, v in data_in.items()}
 
     df = data["features"]
 
-    X = df.drop(columns=cols_to_drop)
-
-    feat_names = list(X.columns)
+    df_X = df.drop(columns=cols_to_drop)
+    feat_names = list(df_X.columns)
     feat_names_cat = [f for f in feat_names if f not in feat_names_non_cat]
 
     logwandb(
         {"feat_names_non_cat": feat_names_non_cat, "feat_names_cat": feat_names_cat}
     )
 
-    # Prepare the features
-    # le = preprocessing.LabelEncoder()
-    le = preprocessing.OrdinalEncoder()
-    for col in X.columns:
-        if col in feat_names_cat:
-            X[col] = le.fit_transform(X[[col]])
+    df_X = encode_df_features(df_X, feat_names_cat)
 
-    data["features"] = X
+    data["features"] = df_X
     data["dropped_cols"] = df[cols_to_drop]
     return data
 
 
+def encode_df_features(df_X: pd.DataFrame, feat_names_cat: List[str]) -> pd.DataFrame:
+
+    # Prepare the features
+    # le = preprocessing.LabelEncoder()
+    le = preprocessing.OrdinalEncoder()
+    for col in df_X.columns:
+        if col in feat_names_cat:
+            df_X[col] = le.fit_transform(df_X[[col]])
+
+    return df_X
+
+
 @task
 def drop_missing_cols(
-    data_in, threshold=0.5,
+    data_in,
+    threshold=0.5,
 ):
     data = {k: v for k, v in data_in.items()}
     df = data["features"]
@@ -121,10 +138,7 @@ def select_and_discretize_target(data_in, yname, disc_strategy, log_of_target):
     df_centr = data["centralities"]
     n_ports = df_centr.shape[0]
 
-    df_merge = (
-        df_centr[[yname]]
-        .join(df_feat, how="left")
-    )
+    df_merge = df_centr[[yname]].join(df_feat, how="left")
 
     X = df_merge[df_feat.columns]
     target = df_merge[[yname]].rename(columns={yname: "continuous"})
@@ -178,14 +192,20 @@ def split_X_y(X_y):
     )
 
     logwandb(
-        {"train_set_size": X_train.shape[0],
-            "test_set_size": X_test.shape[0], }
+        {
+            "train_set_size": X_train.shape[0],
+            "test_set_size": X_test.shape[0],
+        }
     )
 
     return {"train": (X_train, y_train), "test": (X_test, y_test)}
 
 
-def simple_impute_cols(feat_names_non_cat, df_train, df_test=None):
+def simple_impute_cols(
+    feat_names_non_cat: List[str],
+    df_train: pd.DataFrame,
+    df_test: Optional[pd.DataFrame] = None,
+):
     for col in df_train.columns:
         if col in feat_names_non_cat:
             strategy = "mean"
@@ -194,19 +214,16 @@ def simple_impute_cols(feat_names_non_cat, df_train, df_test=None):
 
         imputer = SimpleImputer(strategy=strategy)
 
-        df_train[col] = imputer.fit_transform(
-            df_train[col].values.reshape(-1, 1))
+        df_train[col] = imputer.fit_transform(df_train[col].values.reshape(-1, 1))
         if df_test is not None:
-            df_test[col] = imputer.transform(
-                df_test[col].values.reshape(-1, 1))
+            df_test[col] = imputer.transform(df_test[col].values.reshape(-1, 1))
 
     return df_train, df_test
 
 
 @task
 def impute_missing(train_test_X_y_in, imputer_missing, feat_names_non_cat):
-    train_test_X_y = {k: copy.deepcopy(v)
-                      for k, v in train_test_X_y_in.items()}
+    train_test_X_y = {k: copy.deepcopy(v) for k, v in train_test_X_y_in.items()}
     try:
         logwandb({"imputer_missing": imputer_missing})
     except:
@@ -238,8 +255,7 @@ def impute_missing(train_test_X_y_in, imputer_missing, feat_names_non_cat):
 
 @task
 def train_score_model(train_test_X_y_in, model_name, cv_n_folds):
-    train_test_X_y = {k: copy.deepcopy(v)
-                      for k, v in train_test_X_y_in.items()}
+    train_test_X_y = {k: copy.deepcopy(v) for k, v in train_test_X_y_in.items()}
 
     model = eval(model_name)
     (X_train, y_train) = train_test_X_y["train"]
@@ -277,8 +293,7 @@ def train_score_model(train_test_X_y_in, model_name, cv_n_folds):
         model, X_test, y_test, n_repeats=10, random_state=42, n_jobs=20
     )
 
-    feat_importances = pd.Series(
-        result.importances_mean, index=feat_names).to_frame()
+    feat_importances = pd.Series(result.importances_mean, index=feat_names).to_frame()
     logwandb({"permutation_feat_importances": feat_importances.to_dict()})
 
     fig, ax = plt.subplots()
@@ -292,13 +307,21 @@ def train_score_model(train_test_X_y_in, model_name, cv_n_folds):
     for feat_name in X_train.columns:
         n_bins = y_train.unique().shape[0]
         if n_bins == 2:
-            def yplot(x): return model.predict_proba(x)[:, 1]
+
+            def yplot(x):
+                return model.predict_proba(x)[:, 1]
+
         else:
             yplot = model.predict
         fig, ax = plt.subplots()
         shap.plots.partial_dependence(
-            feat_name, yplot, X_train, ice=False,
-            model_expected_value=True, feature_expected_value=True, ax=ax
+            feat_name,
+            yplot,
+            X_train,
+            ice=False,
+            model_expected_value=True,
+            feature_expected_value=True,
+            ax=ax,
         )
 
         logwandb({f"partial_dependence_{feat_name}": wandb.Image(fig)})
@@ -306,8 +329,7 @@ def train_score_model(train_test_X_y_in, model_name, cv_n_folds):
 
 @task
 def estimate_sage(train_test_X_y_in, model_name, sage_imputer, n_sage_perm):
-    train_test_X_y = {k: copy.deepcopy(v)
-                      for k, v in train_test_X_y_in.items()}
+    train_test_X_y = {k: copy.deepcopy(v) for k, v in train_test_X_y_in.items()}
 
     model = eval(model_name)
     (X_train, y_train) = train_test_X_y["train"]
@@ -332,8 +354,7 @@ def estimate_sage(train_test_X_y_in, model_name, sage_imputer, n_sage_perm):
     fig = sage_values.plot(feat_names, return_fig=True)
     [l.set_fontsize(8) for l in fig.axes[0].get_yticklabels()]
 
-    logwandb({f"sage_mean_{n}": v for n, v in zip(
-        feat_names, sage_values.values)})
+    logwandb({f"sage_mean_{n}": v for n, v in zip(feat_names, sage_values.values)})
     logwandb({f"sage_std_{n}": v for n, v in zip(feat_names, sage_values.std)})
     logwandb({"sage_importances_plot": wandb.Image(fig)})
 
@@ -345,8 +366,7 @@ def estimate_sage(train_test_X_y_in, model_name, sage_imputer, n_sage_perm):
 @task
 def estimate_shap(data_in, yname, train_test_X_y_in, model_name, n_ports_shap=100):
     data = {k: v for k, v in data_in.items()}
-    train_test_X_y = {k: copy.deepcopy(v)
-                      for k, v in train_test_X_y_in.items()}
+    train_test_X_y = {k: copy.deepcopy(v) for k, v in train_test_X_y_in.items()}
 
     start_time = time.time()
 
@@ -368,8 +388,9 @@ def estimate_shap(data_in, yname, train_test_X_y_in, model_name, n_ports_shap=10
 
     explainer = shap.Explainer(model.predict, X_for_shap)
     shap_values = explainer(X_for_shap)
-    df_shap = pd.DataFrame(shap_values.values, columns=shap_values.feature_names,
-                           index=X_for_shap.index).join(X_all[["PORT_NAME", yname]], how="left")
+    df_shap = pd.DataFrame(
+        shap_values.values, columns=shap_values.feature_names, index=X_for_shap.index
+    ).join(X_all[["PORT_NAME", yname]], how="left")
 
     fig = plt.figure()
     shap.plots.beeswarm(shap_values, max_display=14)
@@ -457,8 +478,7 @@ def one_run(
         train_score_model.fn(train_test_X_y, model_name, cv_n_folds)
 
         if run_sage in ["True", "Y", "T", True]:
-            estimate_sage.fn(train_test_X_y, model_name,
-                             sage_imputer, n_sage_perm)
+            estimate_sage.fn(train_test_X_y, model_name, sage_imputer, n_sage_perm)
 
             estimate_shap.fn(data, yname, train_test_X_y, model_name)
 
@@ -531,8 +551,7 @@ def main(
     miss_threshold=0.5,
 ):
     all_vessel_category = ["cargo", "all"]
-    all_model_names = [
-        "RandomForestClassifier(random_state=0)"]  # , "XGBClassifier()"]
+    all_model_names = ["RandomForestClassifier(random_state=0)"]  # , "XGBClassifier()"]
     all_y_names = [
         # "page_rank_bin",
         # "page_rank_w_log_trips",

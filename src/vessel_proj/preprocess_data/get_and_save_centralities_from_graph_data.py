@@ -27,7 +27,7 @@ def get_graph_data() -> pd.DataFrame:
 
     try:
         df = pd.read_parquet(graph_data_file)
-    except:
+    except FileNotFoundError:
         df = download_graph_data_zenodo()
 
     return df
