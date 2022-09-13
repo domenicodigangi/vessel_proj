@@ -4,7 +4,8 @@ import pandas as pd
 from vessel_proj.preprocess_data.get_and_save_centralities_from_graph_data import (
     get_graph_data,
 )
-
+import numpy as np
+from sklearn.model_selection import train_test_split
 from vessel_proj.task.classification_task_pipeline_ports_centr import (
     encode_df_features,
     encode_features,
@@ -78,7 +79,7 @@ def combine_feat_and_links(df_links, feat):
     return edges, edges_attr, feat
 
 
-def get_graph(target_feat, edges, edges_attr, feat):
+def get_graph(target_feat: str, edges, edges_attr, feat) -> torch_geometric.data.Data:
     # Convert the graph information into a PyG Data object
 
     y = torch.tensor(feat[target_feat].to_numpy()).long()
@@ -99,9 +100,27 @@ def get_graph_from_saved_data(target_feat="COUNTRY", vessel_category="cargo"):
     return graph
 
 
-def get_train_mask(n, test_fract=0.2):
-    torch.manual_seed(0)
-    bern = torch.distributions.bernoulli.Bernoulli(torch.tensor(test_fract))
-    train_mask = bern.sample((n,)).bool()
-    test_mask = torch.logical_not(train_mask)
-    return train_mask, test_mask
+def get_train_mask(n, train_size=0.7, seed=1):
+
+    tot_inds = range(n)
+    inds_train, inds_val_test = train_test_split(
+        tot_inds, train_size=train_size, random_state=seed
+    )
+
+    inds_val, inds_test = train_test_split(
+        inds_val_test, test_size=0.5, random_state=seed
+    )
+
+    train_mask = torch.zeros(n, dtype=torch.bool)
+    val_mask = torch.zeros(n, dtype=torch.bool)
+    test_mask = torch.zeros(n, dtype=torch.bool)
+
+    train_mask[inds_train] = True
+    val_mask[inds_val] = True
+    test_mask[inds_test] = True
+
+    # train_mask & val_mask
+    # train_mask & test_mask
+    # val_mask & test_mask
+
+    return train_mask, val_mask, test_mask
