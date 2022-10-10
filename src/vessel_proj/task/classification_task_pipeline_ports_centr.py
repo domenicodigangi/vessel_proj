@@ -2,6 +2,9 @@
 from typing import Dict, List, Optional
 from prefect import task, flow
 import seaborn as sns
+
+sns.set_style("whitegrid")
+import string
 from sklearn.preprocessing import StandardScaler
 from argh import arg
 import argh
@@ -9,6 +12,7 @@ import sage
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer
 from sklearn.preprocessing import KBinsDiscretizer
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import plot_roc_curve
 from sklearn.inspection import permutation_importance
 import wandb
@@ -34,6 +38,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.exceptions import ConvergenceWarning
 import warnings
 
+_PROJECT_NAME = "ports-feature-importance"
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
 
@@ -287,7 +292,7 @@ def train_score_model(train_test_X_y_in, model_name, cv_n_folds):
     logwandb({f"cv_{k}": v for k, v in score_res.items()})
     logwandb({f"avg_cv_{k}": np.mean(v) for k, v in score_res.items()})
 
-    # %% Permutation feature importance from sklearn
+    # % Permutation feature importance from sklearn
     start_time = time.time()
     result = permutation_importance(
         model, X_test, y_test, n_repeats=10, random_state=42, n_jobs=20
@@ -313,6 +318,7 @@ def train_score_model(train_test_X_y_in, model_name, cv_n_folds):
 
         else:
             yplot = model.predict
+        sns.set_style("whitegrid")
         fig, ax = plt.subplots()
         shap.plots.partial_dependence(
             feat_name,
@@ -322,7 +328,18 @@ def train_score_model(train_test_X_y_in, model_name, cv_n_folds):
             model_expected_value=True,
             feature_expected_value=True,
             ax=ax,
+            show=False,
         )
+        if feat_name == "CARGODEPTH":
+            alphabet_string = string.ascii_lowercase
+            alphabet_list = list(alphabet_string)
+            ticks = range(0, 16)
+            labels = [alphabet_list[i] for i in ticks]
+            plt.xticks(ticks, labels)
+        elif feat_name == "HARBORSIZE":
+            ticks = [0, 1, 2, 3]
+            labels = ["L", "M", "S", "V"]
+            plt.xticks(ticks, labels)
 
         logwandb({f"partial_dependence_{feat_name}": wandb.Image(fig)})
 
@@ -431,7 +448,7 @@ def one_run(
 ):
 
     with wandb.init(
-        project=get_project_name(),
+        project=_PROJECT_NAME,
         dir=get_wandb_root_path(),
         group="classification_task",
         reinit=True,
@@ -497,7 +514,7 @@ if False:
     cv_n_folds = 5
     sage_imputer = "DefaultImputer"
     wandb.init(
-        project=get_project_name(),
+        project=_PROJECT_NAME,
         dir=get_wandb_root_path(),
         group="classification_task",
         reinit=True,
@@ -550,14 +567,14 @@ def main(
     log_of_target=False,
     miss_threshold=0.5,
 ):
-    all_vessel_category = ["cargo", "all"]
+    all_vessel_category = ["cargo"]
     all_model_names = ["RandomForestClassifier(random_state=0)"]  # , "XGBClassifier()"]
     all_y_names = [
         # "page_rank_bin",
         # "page_rank_w_log_trips",
         # "closeness_bin",
         # "betweenness_bin",
-        "avg_rank_centr",
+        # "avg_rank_centr",
         "avg_centr",
     ]
     all_imputer_names = ["IterativeImputer()"]
@@ -567,7 +584,7 @@ def main(
                 for imputer_missing in all_imputer_names:
 
                     if disc_strategy.startswith("top_"):
-                        for k in [5, 10, 15]:
+                        for k in [10]:
                             if disc_strategy == "top_k":
                                 disc_strategy_run = f"top_{k}"
                             elif disc_strategy == "top_bottom_k":
@@ -610,6 +627,3 @@ parser.set_default_command(main)
 
 if __name__ == "__main__":
     parser.dispatch()
-
-
-# %%

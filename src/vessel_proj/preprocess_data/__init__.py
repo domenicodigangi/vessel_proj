@@ -18,8 +18,6 @@ logger.setLevel(logging.INFO)
 
 
 load_dotenv()
-_proj_name = os.environ.get("wandb_proj_name")
-_wandb_entity = os.environ.get("wandb_entity")
 
 
 def get_one_file_from_artifact(name, run=None, type=None):

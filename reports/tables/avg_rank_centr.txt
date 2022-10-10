@@ -2,15 +2,15 @@
 \toprule
 {} &                    PORT_NAME &  avg_rank_centr \\
 \midrule
-0 &    KEPPEL - (EAST SINGAPORE) &        0.999957 \\
-1 &                 EUROPA POINT &        0.999532 \\
-2 &             PUERTO CRISTOBAL &        0.998809 \\
-3 &                        CEUTA &        0.998469 \\
-4 &                    VACAMONTE &        0.998128 \\
-5 &                   LAS PALMAS &        0.997363 \\
-6 &  AL ISKANDARIYH (ALEXANDRIA) &        0.996172 \\
-7 &                   EL-ADABIYA &        0.996001 \\
-8 &                  KATSUNAN KO &        0.995236 \\
-9 &                       DURBAN &        0.995151 \\
+0 &    KEPPEL - (EAST SINGAPORE) &        1.000000 \\
+1 &             PUERTO CRISTOBAL &        0.999488 \\
+2 &                   LAS PALMAS &        0.998976 \\
+3 &  AL ISKANDARIYH (ALEXANDRIA) &        0.997952 \\
+4 &                   EL-ADABIYA &        0.997867 \\
+5 &                       DURBAN &        0.997098 \\
+6 &                   CASABLANCA &        0.995946 \\
+7 &                       SANTOS &        0.995776 \\
+8 &                       GRESIK &        0.995477 \\
+9 &                      JAKARTA &        0.994965 \\
 \bottomrule
 \end{tabular}

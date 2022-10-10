@@ -1,4 +1,5 @@
 # %%
+from typing import Dict, List, Optional
 import numpy as np
 import pandas as pd
 import networkx as nx
@@ -112,13 +113,11 @@ def get_centralities(G: nx.DiGraph) -> pd.DataFrame:
         nx.algorithms.link_analysis.pagerank_alg.pagerank(G), orient="index"
     ).iloc[:, 0]
     df_centr["page_rank_w_trips"] = pd.DataFrame.from_dict(
-        nx.algorithms.link_analysis.pagerank_alg.pagerank(
-            G, weight="trips_count"),
+        nx.algorithms.link_analysis.pagerank_alg.pagerank(G, weight="trips_count"),
         orient="index",
     ).iloc[:, 0]
     df_centr["page_rank_w_log_trips"] = pd.DataFrame.from_dict(
-        nx.algorithms.link_analysis.pagerank_alg.pagerank(
-            G, weight="log_trips_count"),
+        nx.algorithms.link_analysis.pagerank_alg.pagerank(G, weight="log_trips_count"),
         orient="index",
     ).iloc[:, 0]
 
@@ -138,20 +137,30 @@ def get_centralities(G: nx.DiGraph) -> pd.DataFrame:
 
     return df_centr
 
+
 # %%
 
 
+def drop_ports(dfg_edges_per_cat: pd.DataFrame, ls_ports_to_drop: List) -> pd.DataFrame:
+    pass
+
+
 @task
-def get_and_save_centralities_from_graph_data(save_path):
+def get_and_save_centralities_from_graph_data(
+    save_path, ports_to_exclude: Optional[Dict] = None
+):
     """
-    load edge_list  select largest connected component 
+    load edge_list  select largest connected component
     """
 
     dfg_edges_per_cat = get_graph_data()
 
+    dfg_edges_per_cat = dfg_edges_per_cat.drop(
+        list(ports_to_exclude.values()), level=0
+    ).drop(list(ports_to_exclude.values()), level=1)
+
     idx = pd.IndexSlice
-    cat_names = dfg_edges_per_cat.index.to_frame(
-    )["vessel_category"].unique().to_list()
+    cat_names = dfg_edges_per_cat.index.to_frame()["vessel_category"].unique().to_list()
     cat_names.append("all")
     # cat_names = "all"
     for cat in cat_names:
@@ -161,8 +170,7 @@ def get_and_save_centralities_from_graph_data(save_path):
         else:
             row_ind = idx[:, :, cat]
 
-        dfg_subset = dfg_edges_per_cat.sort_index(
-            ascending=True).loc[row_ind, :]
+        dfg_subset = dfg_edges_per_cat.sort_index(ascending=True).loc[row_ind, :]
 
         df_edges = group_links_all_categories(dfg_subset)
 

@@ -1,26 +1,26 @@
 \begin{tabular}{llrl}
 \toprule
-{} &                   PORT\_NAME &  Centrality &       Top\_2\_Feat\_SHAP \\
+{} &                   PORT\_NAME &  Centrality &        Top\_2\_Feat\_SHAP \\
 \midrule
-0  &    KEPPEL - (EAST SINGAPORE) &     10.3635 &    LONGITUDE, CARGODEPTH \\
-1  &                 EUROPA POINT &      8.3809 &   HARBORSIZE, DRTYBALLST \\
-2  &             PUERTO CRISTOBAL &      7.0359 &   HARBORSIZE, HARBORTYPE \\
-3  &                        CEUTA &      6.6109 &    LONGITUDE, REPAIRCODE \\
-4  &                    VACAMONTE &      6.5765 &      LONGITUDE, LATITUDE \\
-5  &                   LAS PALMAS &      5.7761 &    LATITUDE, CHAN\_DEPTH \\
-6  &  AL ISKANDARIYH (ALEXANDRIA) &      4.8469 &  REPAIRCODE, COMM\_PHONE \\
-7  &                  KATSUNAN KO &      4.7941 &      LONGITUDE, LATITUDE \\
-8  &                   EL-ADABIYA &      4.7352 &      LATITUDE, LONGITUDE \\
-9  &                       DURBAN &      4.4557 &        LATITUDE, COUNTRY \\
-10 &                       GRESIK &      4.4525 &      LATITUDE, LONGITUDE \\
-11 &                      JAKARTA &      4.3164 &      LONGITUDE, LATITUDE \\
-12 &                   CASABLANCA &      4.1932 &    HARBORSIZE, LONGITUDE \\
-13 &                       SANTOS &      4.0850 &      LATITUDE, LONGITUDE \\
-14 &                       BANTEN &      3.7932 &      LONGITUDE, LATITUDE \\
-15 &                     DAMIETTA &      3.6313 &      LATITUDE, LONGITUDE \\
-16 &                 TONGUE POINT &      3.3919 &      LONGITUDE, LATITUDE \\
-17 &                       ZARATE &      3.3827 &      LATITUDE, LONGITUDE \\
-18 &                   LONG BEACH &      3.3592 &      LATITUDE, LONGITUDE \\
-19 &                      VITORIA &      3.2280 &    LATITUDE, ENTRY\_TIDE \\
+0  &    KEPPEL - (EAST SINGAPORE) &     11.3405 &       LATITUDE, LONGITUDE \\
+1  &             PUERTO CRISTOBAL &      7.8336 &     REPAIRCODE, LONGITUDE \\
+2  &                   LAS PALMAS &      6.3664 &     CARGODEPTH, LONGITUDE \\
+3  &  AL ISKANDARIYH (ALEXANDRIA) &      5.3186 &    DRTYBALLST, CARGODEPTH \\
+4  &                   EL-ADABIYA &      5.1638 &         LATITUDE, COUNTRY \\
+5  &                       DURBAN &      4.8197 &       LATITUDE, LONGITUDE \\
+6  &                       GRESIK &      4.7316 &       LATITUDE, LONGITUDE \\
+7  &                   CASABLANCA &      4.6273 &       LATITUDE, LONGITUDE \\
+8  &                      JAKARTA &      4.5890 &       LATITUDE, LONGITUDE \\
+9  &                       SANTOS &      4.4293 &         LATITUDE, COUNTRY \\
+10 &                       BANTEN &      4.0696 &  OVERHD\_LIM, ENTRY\_TIDE \\
+11 &                     DAMIETTA &      3.9499 &      LATITUDE, PROVISIONS \\
+12 &                       ZARATE &      3.6693 &       LATITUDE, LONGITUDE \\
+13 &                   LONG BEACH &      3.6407 &       LATITUDE, LONGITUDE \\
+14 &                   VOSTOCHNYY &      3.4904 &       LATITUDE, LONGITUDE \\
+15 &                      VITORIA &      3.4783 &         LATITUDE, COUNTRY \\
+16 &                 FRASER MILLS &      3.4064 &       LATITUDE, LONGITUDE \\
+17 &                    NEWCASTLE &      3.3640 &       LONGITUDE, LATITUDE \\
+18 &                    MYS ABRAM &      3.3464 &       LATITUDE, LONGITUDE \\
+19 &                 COWICHAN BAY &      3.3117 &       LONGITUDE, LATITUDE \\
 \bottomrule
 \end{tabular}
