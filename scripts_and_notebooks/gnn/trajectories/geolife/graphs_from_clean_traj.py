@@ -86,6 +86,12 @@ def get_chain_graph_from_sub_traj(df_traj: pd.DataFrame):
 
     df_feat = df_feat.fillna(method="ffill")
 
+    if df_feat.isnull().any().any():
+        print("null value found")
+        df_feat = df_feat.dropna()
+    if df_feat.isin([np.inf, -np.inf]).any().any():
+        raise ValueError("inf value found")
+
     if df_traj["transportation_mode"].unique().shape[0] != 1:
         raise ValueError("should have only one mode per trajectory")
     transportation_mode = df_traj["transportation_mode"].iloc[0]
