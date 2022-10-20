@@ -23,12 +23,18 @@ dotenv.load_dotenv("/home/digan/cnr/vessel_proj/vessel_proj_secrets.env")
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-EXPERIMENT_VERSION = "test"
-loadfold = Path("/home/digan/cnr/vessel_proj/data/processed/gnn/geolife_graphs")
+EXPERIMENT_VERSION = "test_hurricanes"
+loadfold = Path("/home/digan/cnr/vessel_proj/data/processed/gnn/hurricane_graphs")
 
 loadfile = loadfold / "graph_list.pt"
 
 graph_list = torch.load(loadfile)
+
+num_classes = torch.unique(torch.tensor([g.y for g in graph_list])).shape[0]
+
+num_node_features = torch.unique(torch.tensor([g.x.shape[1] for g in graph_list]))[
+    0
+].item()
 
 torch.manual_seed(12345)
 
@@ -51,8 +57,6 @@ for g in train_graphs + test_graphs + val_graphs:
 train_loader = torch_geometric.loader.DataLoader(train_graphs, batch_size=32)
 val_loader = torch_geometric.loader.DataLoader(val_graphs, batch_size=32)
 test_loader = torch_geometric.loader.DataLoader(test_graphs, batch_size=32)
-
-# %%
 
 
 class GCN5(torch.nn.Module):
@@ -220,12 +224,6 @@ experiment = mlflow.get_experiment_by_name(experiment_name)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-num_classes = torch.unique(torch.tensor([g.y for g in graph_list])).shape[0]
-
-num_node_features = torch.unique(torch.tensor([g.x.shape[1] for g in graph_list]))[
-    0
-].item()
-
 model_list = [
     GCN2(hidden_channels=64),
     GCN2(hidden_channels=32),
@@ -253,7 +251,7 @@ def execute_one_run(model):
                 k: v for k, v in optimizer.param_groups[0].items() if k not in "params"
             }
             h_par["optim_str"] = optimizer.__str__()
-            h_par["n_epochs"] = 500
+            h_par["n_epochs"] = 250
             h_par["Model Name"] = model._get_name()
             h_par["hidden_channels"] = model.hidden_channels
             h_par["Model String"] = model.__str__()
@@ -322,3 +320,5 @@ for model in model_list:
 # from joblib import Parallel, delayed
 
 # results = Parallel(n_jobs=2)(delayed(execute_one_run)(model) for model in model_list)
+
+# %%

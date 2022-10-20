@@ -23,12 +23,17 @@ dotenv.load_dotenv("/home/digan/cnr/vessel_proj/vessel_proj_secrets.env")
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-EXPERIMENT_VERSION = "test"
-loadfold = Path("/home/digan/cnr/vessel_proj/data/processed/gnn/geolife_graphs")
+EXPERIMENT_VERSION = "test_vessel_traj"
+loadfold = Path("/home/digan/cnr/vessel_proj/data/processed/gnn/vessel_test_graphs")
 
 loadfile = loadfold / "graph_list.pt"
 
 graph_list = torch.load(loadfile)
+num_classes = torch.unique(torch.tensor([g.y for g in graph_list])).shape[0]
+
+num_node_features = torch.unique(torch.tensor([g.x.shape[1] for g in graph_list]))[
+    0
+].item()
 
 torch.manual_seed(12345)
 
@@ -220,11 +225,6 @@ experiment = mlflow.get_experiment_by_name(experiment_name)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-num_classes = torch.unique(torch.tensor([g.y for g in graph_list])).shape[0]
-
-num_node_features = torch.unique(torch.tensor([g.x.shape[1] for g in graph_list]))[
-    0
-].item()
 
 model_list = [
     GCN2(hidden_channels=64),
@@ -242,7 +242,7 @@ criterion = torch.nn.CrossEntropyLoss()
 
 def execute_one_run(model):
 
-    for lr in [0.0005]:
+    for lr in [0.001]:
 
         with mlflow.start_run(experiment_id=experiment.experiment_id):
             model = model.to(device)
@@ -253,7 +253,7 @@ def execute_one_run(model):
                 k: v for k, v in optimizer.param_groups[0].items() if k not in "params"
             }
             h_par["optim_str"] = optimizer.__str__()
-            h_par["n_epochs"] = 500
+            h_par["n_epochs"] = 250
             h_par["Model Name"] = model._get_name()
             h_par["hidden_channels"] = model.hidden_channels
             h_par["Model String"] = model.__str__()

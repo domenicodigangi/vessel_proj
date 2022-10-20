@@ -25,13 +25,6 @@ df_all_traj["g"] = df_all_traj.iloc[:, 3].isna().cumsum()
 
 df_all_list = [df for g, df in df_all_traj.groupby(by="g")]
 
-len(df_all_list)
-df_all_traj.head(20)
-
-df = df_all_list[3]
-
-df
-df.shape
 
 with open(loadfile, newline="") as csvfile:
     spamreader = csv.reader(csvfile, delimiter=",")
@@ -104,8 +97,7 @@ df_all["datetime"] = pd.to_datetime(
     pd.to_datetime(df_all["date"]).astype(str) + " " + df_all["time"]
 )
 df_all = df_all.reset_index().drop(columns="index")
-# TODO compute distances
-# TODO compute speed
+
 
 # %%
 inds_north = df_all["latitude_str"].str.contains("N")
@@ -138,16 +130,23 @@ df_all["lat_long"] = df_all[["latitude", "longitude"]].apply(tuple, axis=1)
 df_all = df_all.drop(df_all[df_all["latitude"] > 90].index)
 df_all = df_all.drop(df_all[df_all["latitude"] < -90].index)
 
-df_all["lat_long_prev"] = df_all["lat_long"].shift(1)
-df_all["one_step_distance_meters"] = (
-    df_all[["lat_long", "lat_long_prev"]]
-    .dropna()
-    .apply(lambda x: distance.distance(x["lat_long"], x["lat_long_prev"]).m, axis=1)
-)
 
+for g, df in df_all.groupby(by="id"):
+    if df.shape[0] > 1:
+        df["lat_long_prev"] = df["lat_long"].shift(1)
+        df["one_step_distance_meters"] = (
+            df[["lat_long", "lat_long_prev"]]
+            .dropna()
+            .apply(
+                lambda x: distance.distance(x["lat_long"], x["lat_long_prev"]).m, axis=1
+            )
+        )
 
-df_all["delta_datetime"] = df_all["datetime"] - df_all["datetime"].shift(1)
-df_all["delta_date_seconds"] = df_all["delta_datetime"].dt.seconds
-df_all["speed_m_s"] = df_all["one_step_distance_meters"] / df_all["delta_date_seconds"]
+        df["delta_datetime"] = df["datetime"] - df["datetime"].shift(1)
+        df["delta_date_seconds"] = df["delta_datetime"].dt.seconds
+        df["speed_m_s"] = df["one_step_distance_meters"] / df["delta_date_seconds"]
 
-df_all["datetime"] = df_all["datetime"].astype("datetime64[ms]")
+        df["datetime"] = df["datetime"].astype("datetime64[ms]")
+        df.to_parquet(savefoldpath / f"{g}.parquet")
+
+# %%
