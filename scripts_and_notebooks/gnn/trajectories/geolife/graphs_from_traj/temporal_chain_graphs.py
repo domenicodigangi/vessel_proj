@@ -3,7 +3,7 @@ import pandas as pd
 import torch
 import numpy as np
 from pathlib import Path
-from vessel_proj.preprocess_data.traj_to_graphs import get_chain_graph_from_sub_traj
+from vessel_proj.preprocess_data.traj_to_graphs import get_chain_graph_from_traj
 
 loadfoldpath = Path(
     "/home/digan/cnr/vessel_proj/data/interim/geolife_traj_preprocessed"
@@ -19,7 +19,7 @@ for filepath in loadfoldpath.iterdir():
         "altitude",
     ]
 
-    graph = get_chain_graph_from_sub_traj(
+    graph = get_chain_graph_from_traj(
         df_traj, cat_col="transportation_mode", additional_columns=additional_columns
     )
 
@@ -38,7 +38,7 @@ for graph in graph_list:
 
 savefold = Path("/home/digan/cnr/vessel_proj/data/processed/gnn/geolife_graphs")
 
-savefile = savefold / "graph_list.pt"
+savefile = savefold / "graph_list_temporal_chain_homogeneous.pt"
 
 torch.save(graph_list, savefile)
 

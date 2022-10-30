@@ -227,14 +227,15 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 model_list = [
-    GCN2(hidden_channels=64),
-    GCN2(hidden_channels=32),
-    GCN3(hidden_channels=64),
-    GCN3(hidden_channels=32),
-    GCN4(hidden_channels=64),
-    GCN4(hidden_channels=32),
-    GCN5(hidden_channels=64),
-    GCN5(hidden_channels=32),
+    # GCN2(hidden_channels=64),
+    # GCN2(hidden_channels=32),
+    # GCN3(hidden_channels=64),
+    GCN2(hidden_channels=16),
+    GCN3(hidden_channels=16),
+    # GCN4(hidden_channels=64),
+    GCN4(hidden_channels=16),
+    GCN5(hidden_channels=16),
+    # GCN5(hidden_channels=32),
 ]
 
 criterion = torch.nn.CrossEntropyLoss()

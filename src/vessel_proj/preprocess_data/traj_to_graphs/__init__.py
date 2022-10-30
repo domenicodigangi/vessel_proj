@@ -1,25 +1,11 @@
-from typing import List, Tuple
+from dis import dis
+from typing import Dict, List, Optional, Tuple
 import pandas as pd
 import torch
 import torch_geometric
 import numpy as np
 from sklearn.neighbors import BallTree
 from pathlib import Path
-
-
-def get_horiz_links(df: pd.DataFrame, th_meters: int) -> Tuple:
-
-    hearth_radius = 6371000
-
-    X = df[["latitude", "longitude"]]
-    tree = BallTree(X, metric="haversine")
-    th_angle = th_meters / hearth_radius
-    res = tree.query_radius(X, th_angle, return_distance=True)
-
-    array_of_neighbours = res[0]
-    dist_in_meters = res[1] * hearth_radius
-
-    return array_of_neighbours, dist_in_meters
 
 
 def get_temporal_links(df: pd.DataFrame, th_seconds: int) -> Tuple:
@@ -38,6 +24,22 @@ def get_temporal_links(df: pd.DataFrame, th_seconds: int) -> Tuple:
     return res
 
 
+def get_neighbours_in_radius(X: np.ndarray, radius: int, metric="euclidean") -> Tuple:
+
+    tree = BallTree(X, metric=metric)
+    dist, ind = tree.query_radius(X, radius, return_distance=True)
+
+    return dist, ind
+
+
+def get_k_nearest_neighbours(X: np.ndarray, k: int, metric: str = "euclidean") -> Tuple:
+
+    tree = BallTree(X, metric=metric)
+    dist, ind = tree.query(X, k=k)
+
+    return dist, ind
+
+
 def get_edge_list(array_of_neighbours: np.array) -> List[Tuple[int, int]]:
 
     edge_list = []
@@ -48,32 +50,64 @@ def get_edge_list(array_of_neighbours: np.array) -> List[Tuple[int, int]]:
     return edge_list
 
 
-def get_altitude_links(df: pd.DataFrame, th_meters: int) -> Tuple:
-
-    X = df[["altitude"]]
-
-    tree = BallTree(X, metric="euclidean")
-    res = tree.query_radius(X, th_meters, return_distance=True)
-
-    return res
-
-
-def get_chain_links(df: pd.DataFrame) -> Tuple:
-
-    res = np.array([np.array([i + 1]) for i in range(df.shape[0] - 1)])
-
-    return res
-
-
-def get_chain_graph_from_sub_traj(
+def get_chain_graph_from_traj(
     df_traj: pd.DataFrame,
     cat_col: str,
     additional_columns: List = [],
 ):
 
-    chain_array_of_neighbours = get_chain_links(df_traj)
+    chain_array_of_neighbours = get_temporal_chain_links(df_traj)
 
-    df_edges = get_df_edge_list_from_array_of_neighbours(chain_array_of_neighbours)
+    df_edges = get_df_edge_list_from_uniform_array_of_neighbours(
+        chain_array_of_neighbours
+    )
+
+    df_feat = get_df_feat_from_traj(df_traj, additional_columns=additional_columns)
+
+    if df_traj[cat_col].unique().shape[0] != 1:
+        raise ValueError("should have only one category per trajectory")
+    y_value = df_traj[cat_col].iloc[0]
+
+    graph = get_traj_graph(df_edges, df_feat, y_value)
+
+    return graph
+
+
+def get_temporal_chain_links(df_traj: pd.DataFrame) -> Tuple:
+
+    res = np.array([np.array([i + 1]) for i in range(df_traj.shape[0] - 1)])
+
+    return res
+
+
+def get_lat_long_neighbours(df_traj: pd.DataFrame, method: str, par: float) -> Tuple:
+
+    hearth_radius = 6371000
+
+    X = df_traj[["latitude", "longitude"]]
+
+    if method == "knn":
+        k = par
+        dist, ind = get_k_nearest_neighbours(X, k=k, metric="haversine")
+
+    elif method == "radius":
+        radius_meters = par
+        th_angle = radius_meters / hearth_radius
+
+        dist, ind = get_neighbours_in_radius(X, radius=th_angle, metric="haversine")
+
+    else:
+        raise ValueError("method not recognized")
+
+    dist_hor = dist * hearth_radius
+
+    return dist_hor, ind
+
+
+def get_df_feat_from_traj(
+    df_traj: pd.DataFrame, additional_columns: List = []
+) -> pd.DataFrame:
+
     df_feat = df_traj[
         [
             "latitude",
@@ -93,25 +127,23 @@ def get_chain_graph_from_sub_traj(
     if df_feat.isin([np.inf, -np.inf]).any().any():
         raise ValueError("inf value found")
 
-    if df_traj[cat_col].unique().shape[0] != 1:
-        raise ValueError("should have only one category per trajectory")
-    transportation_mode = df_traj[cat_col].iloc[0]
-
-    graph = get_traj_graph(df_edges, df_feat, transportation_mode)
-
-    return graph
+    return df_feat
 
 
-def get_df_edge_list_from_array_of_neighbours(
+def get_df_edge_list_from_uniform_array_of_neighbours(
     array_of_neighbours: np.array,
+    distances: Optional[np.array] = None,
 ) -> pd.DataFrame:
 
     df_edges = (
         pd.DataFrame(array_of_neighbours)
-        .explode(0)
-        .reset_index()
-        .rename(columns={"index": "start_node", 0: "end_node"})
+        .stack()
+        .reset_index()[["level_0", 0]]
+        .rename(columns={"level_0": "start_node", 0: "end_node"})
     )
+    if distances is not None:
+        df_edges["distance"] = pd.DataFrame(distances).stack().reset_index()[0]
+
     return df_edges
 
 
@@ -128,3 +160,129 @@ def get_traj_graph(
     graph = torch_geometric.data.Data(x=feat, edge_index=edges, y=y)
 
     return graph
+
+
+def get_homogeneous_spatio_temp_chain_graph(
+    df_traj: pd.DataFrame,
+    cat_col: str,
+    additional_columns: List = [],
+) -> torch_geometric.data.Data:
+
+    k = 2
+    dist_hor, edges_hor = get_lat_long_neighbours(df_traj, method="knn", par=k)
+
+    edges_temp = get_temporal_chain_links(df_traj)
+
+    df_edges_temp = get_df_edge_list_from_uniform_array_of_neighbours(edges_temp)
+    df_edges_hor = get_df_edge_list_from_uniform_array_of_neighbours(edges_hor)
+
+    df = pd.concat((df_edges_temp, df_edges_hor))
+
+    if "altitude" in df_traj.columns:
+        dist, edges_vert = get_k_nearest_neighbours(
+            np.expand_dims(df_traj["altitude"].values, axis=1), k=k, metric="euclidean"
+        )
+        df_edges_vert = get_df_edge_list_from_uniform_array_of_neighbours(edges_vert)
+
+    df = pd.concat((df, df_edges_vert))
+
+    df_edges = remove_self_loops_and_dup(df)
+
+    df_feat = get_df_feat_from_traj(df_traj, additional_columns=additional_columns)
+
+    y_value = df_traj[cat_col].iloc[0]
+
+    graph = get_traj_graph(df_edges, df_feat, y_value)
+
+    return graph
+
+
+def remove_self_loops_and_dup(df: pd.DataFrame) -> pd.DataFrame:
+    return df.loc[df["start_node"] != df["end_node"]].drop_duplicates()
+
+
+def clean_and_keep_closest_k_links(df: pd.DataFrame, n_to_keep: int) -> pd.DataFrame:
+    df = remove_self_loops_and_dup(df)
+
+    return df.sort_values(by="distance").iloc[:n_to_keep]
+
+
+def get_homogeneous_spatio_temp_closest_percentile_graph(
+    df_traj: pd.DataFrame,
+    cat_col: str,
+    percentile: float = 1.0,
+    additional_columns: List = [],
+) -> torch_geometric.data.Data:
+
+    n_nodes = df_traj.shape[0]
+    n_pox_links = n_nodes * (n_nodes - 1) / 2
+    n_links_percentile = round(n_pox_links * (percentile / 100)) + 1
+    k = round((n_links_percentile / n_nodes) * 10)
+
+    dist_hor, edges_hor = get_lat_long_neighbours(df_traj, method="knn", par=k)
+
+    df_edges_hor = get_df_edge_list_from_uniform_array_of_neighbours(
+        edges_hor, dist_hor
+    )
+
+    df_edges_hor = clean_and_keep_closest_k_links(df_edges_hor, n_links_percentile)
+
+    dist_temp, edges_temp = get_k_nearest_neighbours(
+        np.expand_dims(
+            (df_traj["datetime"] - df_traj["datetime"].iloc[0]).values, axis=1
+        ),
+        k=k,
+        metric="euclidean",
+    )
+    df_edges_temp = get_df_edge_list_from_uniform_array_of_neighbours(
+        edges_temp, dist_temp
+    )
+    df_edges_temp = clean_and_keep_closest_k_links(df_edges_temp, n_links_percentile)
+
+    df = pd.concat((df_edges_temp, df_edges_hor))
+
+    if "altitude" in df_traj.columns:
+        dist_vert, edges_vert = get_k_nearest_neighbours(
+            np.expand_dims(df_traj["altitude"].values, axis=1),
+            k=k,
+            metric="euclidean",
+        )
+        df_edges_vert = get_df_edge_list_from_uniform_array_of_neighbours(
+            edges_vert, dist_vert
+        )
+        df_edges_vert = clean_and_keep_closest_k_links(
+            df_edges_temp, n_links_percentile
+        )
+
+    df = pd.concat((df, df_edges_vert))
+
+    df_edges = remove_self_loops_and_dup(df)
+
+    df_feat = get_df_feat_from_traj(df_traj, additional_columns=additional_columns)
+
+    y_value = df_traj[cat_col].iloc[0]
+
+    graph = get_traj_graph(df_edges, df_feat, y_value)
+
+    return graph
+
+
+def get_het_graph_from_dict_of_traj_edges_df_and_df_feat(
+    dict_df_edges: Dict[str, pd.DataFrame], df_feat: pd.DataFrame, y: str
+) -> torch_geometric.data.Data:
+
+    feat = torch.tensor(df_feat.to_numpy()).float()
+
+    het_graph = torch_geometric.data.HeteroData()
+    het_graph["traj_point"].x = feat  # [num_papers, num_features_paper]
+
+    for rel_name, df_edges in dict_df_edges.items():
+
+        edges = torch.tensor(
+            df_edges[["start_node", "end_node"]].to_numpy().T,
+            dtype=torch.long,
+        )
+
+        het_graph["traj_point", rel_name, "traj_point"].edge_index = edges
+
+    return het_graph

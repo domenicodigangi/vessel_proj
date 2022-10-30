@@ -3,7 +3,7 @@ import pandas as pd
 import torch
 import numpy as np
 from pathlib import Path
-from vessel_proj.preprocess_data.traj_to_graphs import get_chain_graph_from_sub_traj
+from vessel_proj.preprocess_data.traj_to_graphs import get_chain_graph_from_traj
 
 loadfoldpath = Path(
     "/home/digan/cnr/vessel_proj/data/interim/hurricane_traj_preprocessed"
@@ -18,7 +18,7 @@ for filepath in loadfoldpath.iterdir():
 
     df_traj = pd.read_parquet(filepath)
 
-    graph = get_chain_graph_from_sub_traj(
+    graph = get_chain_graph_from_traj(
         df_traj.iloc[1:, :],
         cat_col="cat",
     )

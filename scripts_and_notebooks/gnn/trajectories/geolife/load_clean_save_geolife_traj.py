@@ -147,7 +147,7 @@ def visualize_graphs(df_traj):
     altitude_array_of_neighbours, _ = get_altitude_links(df_traj, th_meters=5)
     horizontal_array_of_neighbours, _ = get_horiz_links(df_traj, th_meters=30)
     time_array_of_neighbours, _ = get_temporal_links(df_traj, th_seconds=10)
-    chain_array_of_neighbours = get_chain_links(df_traj)
+    chain_array_of_neighbours = get_temporal_chain_links(df_traj)
 
     G_chain = nx.from_edgelist(get_edge_list(chain_array_of_neighbours))
     G_time = nx.from_edgelist(get_edge_list(time_array_of_neighbours))
