@@ -8,17 +8,18 @@ import dotenv
 import mlflow
 import torch
 import torch_geometric
+from torch_geometric.nn.to_hetero_transformer import ToHeteroTransformer
 from sklearn.model_selection import train_test_split
 
 
 from vessel_proj.ds_utils import set_mlflow
-from vessel_proj.gnn.train_utils import execute_one_run
+from vessel_proj.gnn.train_utils import (
+    execute_one_run,
+    get_x_from_homo_and_hetero_graph,
+)
 from vessel_proj.gnn.models import get_gcn_model_list
 
 dotenv.load_dotenv("/home/digan/cnr/vessel_proj/vessel_proj_secrets.env")
-
-
-#%%
 
 
 #%%
@@ -29,11 +30,12 @@ EXPERIMENT_VERSION = "geolife"
 loadfold = Path("/home/digan/cnr/vessel_proj/data/processed/gnn/geolife_graphs")
 set_mlflow()
 
-
+graph_type = "spatio_temporal_chain_heterogeneous"
 for graph_type in [
-    "spatio_temporal_percentile_1_homogeneous",
-    "spatio_temporal_chain_homogeneous",
-    "temporal_chain_homogeneous",
+    "spatio_temporal_chain_heterogeneous",
+    # "spatio_temporal_percentile_1_homogeneous",
+    # "spatio_temporal_chain_homogeneous",
+    # "temporal_chain_homogeneous",
 ]:
 
     loadfile = loadfold / f"graph_list_{graph_type}.pt"
@@ -42,9 +44,9 @@ for graph_type in [
 
     num_classes = torch.unique(torch.tensor([g.y for g in graph_list])).shape[0]
 
-    num_node_features = torch.unique(torch.tensor([g.x.shape[1] for g in graph_list]))[
-        0
-    ].item()
+    num_node_features = torch.unique(
+        torch.tensor([get_x_from_homo_and_hetero_graph(g).shape[1] for g in graph_list])
+    )[0].item()
 
     torch.manual_seed(12345)
 
@@ -56,12 +58,14 @@ for graph_type in [
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     for g in train_graphs + test_graphs + val_graphs:
-        if ~torch.isfinite(g.x).all():
+        if ~torch.isfinite(get_x_from_homo_and_hetero_graph(g)).all():
             raise ValueError("found infinite value")
         g = g.to(device)
 
-        if ~torch.isfinite(g.x).all():
+        if ~torch.isfinite(get_x_from_homo_and_hetero_graph(g)).all():
             raise ValueError("found infinite value in gPU version")
+
+    graph_metadata = g.metadata()
 
     train_loader = torch_geometric.loader.DataLoader(train_graphs, batch_size=32)
     val_loader = torch_geometric.loader.DataLoader(val_graphs, batch_size=32)
@@ -76,7 +80,15 @@ for graph_type in [
     model_list = get_gcn_model_list(num_node_features, num_classes)
     lr_values = [0.005]
     n_epochs = 250
+    model = model_list[0]
     for model in model_list:
+
+        if "hetero" in graph_type:
+            transformer = ToHeteroTransformer(model, graph_metadata, aggr="sum")
+            model = transformer.transform()
+
         execute_one_run(
             experiment, model, train_loader, val_loader, lr_values, graph_type, n_epochs
         )
+
+# %%

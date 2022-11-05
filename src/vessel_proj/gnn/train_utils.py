@@ -39,6 +39,15 @@ def get_accuracy(loader, model):
     return correct / len(loader.dataset)  # Derive ratio of correct predictions.
 
 
+def get_x_from_homo_and_hetero_graph(graph):
+
+    try:
+        x = graph.x
+    except AttributeError:
+        x = graph["traj_point"].x
+    return x
+
+
 def execute_one_run(
     experiment,
     model,

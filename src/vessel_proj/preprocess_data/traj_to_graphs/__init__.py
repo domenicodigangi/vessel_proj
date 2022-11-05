@@ -168,23 +168,9 @@ def get_homogeneous_spatio_temp_chain_graph(
     additional_columns: List = [],
 ) -> torch_geometric.data.Data:
 
-    k = 2
-    dist_hor, edges_hor = get_lat_long_neighbours(df_traj, method="knn", par=k)
+    dict_df_edges = get_spatio_temp_edges_dict(df_traj)
 
-    edges_temp = get_temporal_chain_links(df_traj)
-
-    df_edges_temp = get_df_edge_list_from_uniform_array_of_neighbours(edges_temp)
-    df_edges_hor = get_df_edge_list_from_uniform_array_of_neighbours(edges_hor)
-
-    df = pd.concat((df_edges_temp, df_edges_hor))
-
-    if "altitude" in df_traj.columns:
-        dist, edges_vert = get_k_nearest_neighbours(
-            np.expand_dims(df_traj["altitude"].values, axis=1), k=k, metric="euclidean"
-        )
-        df_edges_vert = get_df_edge_list_from_uniform_array_of_neighbours(edges_vert)
-
-    df = pd.concat((df, df_edges_vert))
+    df = pd.concat(dict_df_edges.values())
 
     df_edges = remove_self_loops_and_dup(df)
 
@@ -195,6 +181,31 @@ def get_homogeneous_spatio_temp_chain_graph(
     graph = get_traj_graph(df_edges, df_feat, y_value)
 
     return graph
+
+
+def get_spatio_temp_edges_dict(
+    df_traj: pd.DataFrame,
+) -> Dict[str, pd.DataFrame]:
+
+    k = 2
+    dist_hor, edges_hor = get_lat_long_neighbours(df_traj, method="knn", par=k)
+
+    edges_temp = get_temporal_chain_links(df_traj)
+
+    df_edges_temp = get_df_edge_list_from_uniform_array_of_neighbours(edges_temp)
+    df_edges_hor = get_df_edge_list_from_uniform_array_of_neighbours(edges_hor)
+
+    dict_df_edges = {"temporal": df_edges_temp, "horizontal": df_edges_hor}
+
+    if "altitude" in df_traj.columns:
+        dist, edges_vert = get_k_nearest_neighbours(
+            np.expand_dims(df_traj["altitude"].values, axis=1), k=k, metric="euclidean"
+        )
+        df_edges_vert = get_df_edge_list_from_uniform_array_of_neighbours(edges_vert)
+
+        dict_df_edges["altitude"] = df_edges_vert
+
+    return dict_df_edges
 
 
 def remove_self_loops_and_dup(df: pd.DataFrame) -> pd.DataFrame:
@@ -267,11 +278,19 @@ def get_homogeneous_spatio_temp_closest_percentile_graph(
     return graph
 
 
-def get_het_graph_from_dict_of_traj_edges_df_and_df_feat(
-    dict_df_edges: Dict[str, pd.DataFrame], df_feat: pd.DataFrame, y: str
+def get_het_graph_from_df_traj_and_df_feat(
+    df_traj: pd.DataFrame,
+    cat_col: str,
+    additional_columns: List = [],
 ) -> torch_geometric.data.Data:
 
+    dict_df_edges = get_spatio_temp_edges_dict(df_traj)
+
+    df_feat = get_df_feat_from_traj(df_traj, additional_columns=additional_columns)
+
     feat = torch.tensor(df_feat.to_numpy()).float()
+
+    y_value = df_traj[cat_col].iloc[0]
 
     het_graph = torch_geometric.data.HeteroData()
     het_graph["traj_point"].x = feat  # [num_papers, num_features_paper]
@@ -284,5 +303,7 @@ def get_het_graph_from_dict_of_traj_edges_df_and_df_feat(
         )
 
         het_graph["traj_point", rel_name, "traj_point"].edge_index = edges
+
+        het_graph.y = y_value
 
     return het_graph
