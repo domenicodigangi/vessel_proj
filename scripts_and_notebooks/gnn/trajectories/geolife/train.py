@@ -25,7 +25,7 @@ dotenv.load_dotenv("/home/digan/cnr/vessel_proj/vessel_proj_secrets.env")
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-EXPERIMENT_VERSION = "geolife_traj_class"
+EXPERIMENT_VERSION = "geolife"
 loadfold = Path("/home/digan/cnr/vessel_proj/data/processed/gnn/geolife_graphs")
 set_mlflow()
 
@@ -33,6 +33,7 @@ set_mlflow()
 for graph_type in [
     "spatio_temporal_percentile_1_homogeneous",
     "spatio_temporal_chain_homogeneous",
+    "temporal_chain_homogeneous",
 ]:
 
     loadfile = loadfold / f"graph_list_{graph_type}.pt"
@@ -73,8 +74,9 @@ for graph_type in [
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model_list = get_gcn_model_list(num_node_features, num_classes)
-    lr_values = [0.0005]
+    lr_values = [0.005]
+    n_epochs = 250
     for model in model_list:
         execute_one_run(
-            experiment, model, train_loader, val_loader, lr_values, graph_type
+            experiment, model, train_loader, val_loader, lr_values, graph_type, n_epochs
         )

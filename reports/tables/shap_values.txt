@@ -1,26 +1,26 @@
 \begin{tabular}{llrl}
 \toprule
-{} &                   PORT\_NAME &  Centrality &        Top\_2\_Feat\_SHAP \\
+{} &                   PORT\_NAME &  Centrality &                                 Top\_2\_Feat\_SHAP \\
 \midrule
-0  &    KEPPEL - (EAST SINGAPORE) &     11.3405 &       LATITUDE, LONGITUDE \\
-1  &             PUERTO CRISTOBAL &      7.8336 &     REPAIRCODE, LONGITUDE \\
-2  &                   LAS PALMAS &      6.3664 &     CARGODEPTH, LONGITUDE \\
-3  &  AL ISKANDARIYH (ALEXANDRIA) &      5.3186 &    DRTYBALLST, CARGODEPTH \\
-4  &                   EL-ADABIYA &      5.1638 &         LATITUDE, COUNTRY \\
-5  &                       DURBAN &      4.8197 &       LATITUDE, LONGITUDE \\
-6  &                       GRESIK &      4.7316 &       LATITUDE, LONGITUDE \\
-7  &                   CASABLANCA &      4.6273 &       LATITUDE, LONGITUDE \\
-8  &                      JAKARTA &      4.5890 &       LATITUDE, LONGITUDE \\
-9  &                       SANTOS &      4.4293 &         LATITUDE, COUNTRY \\
-10 &                       BANTEN &      4.0696 &  OVERHD\_LIM, ENTRY\_TIDE \\
-11 &                     DAMIETTA &      3.9499 &      LATITUDE, PROVISIONS \\
-12 &                       ZARATE &      3.6693 &       LATITUDE, LONGITUDE \\
-13 &                   LONG BEACH &      3.6407 &       LATITUDE, LONGITUDE \\
-14 &                   VOSTOCHNYY &      3.4904 &       LATITUDE, LONGITUDE \\
-15 &                      VITORIA &      3.4783 &         LATITUDE, COUNTRY \\
-16 &                 FRASER MILLS &      3.4064 &       LATITUDE, LONGITUDE \\
-17 &                    NEWCASTLE &      3.3640 &       LONGITUDE, LATITUDE \\
-18 &                    MYS ABRAM &      3.3464 &       LATITUDE, LONGITUDE \\
-19 &                 COWICHAN BAY &      3.3117 &       LONGITUDE, LATITUDE \\
+0  &    KEPPEL - (EAST SINGAPORE) &     11.3405 &  COUNTRY, PRATIQUE, ENTRY\_ICE, SHELTER, MED\_F... \\
+1  &             PUERTO CRISTOBAL &      7.8336 &  REPAIRCODE, PILOT\_REQD, CARGODEPTH, HARBORSIZ... \\
+2  &                   LAS PALMAS &      6.3664 &  CARGODEPTH, HARBORSIZE, REPAIRCODE, PROVISIONS... \\
+3  &  AL ISKANDARIYH (ALEXANDRIA) &      5.3186 &  DRTYBALLST, CARGODEPTH, ANCH\_DEPTH, COUNTRY, ... \\
+4  &                   EL-ADABIYA &      5.1638 &  COUNTRY, OVERHD\_LIM, SHELTER, PRATIQUE, ENTRY... \\
+5  &                       DURBAN &      4.8197 &  COUNTRY, ENTRYSWELL, HARBORSIZE, COMM\_AIR, AN... \\
+6  &                       GRESIK &      4.7316 &  PROVISIONS, COUNTRY, OVERHD\_LIM, CHAN\_DEPTH,... \\
+7  &                   CASABLANCA &      4.6273 &  OVERHD\_LIM, ENTRYSWELL, US\_REP, PROVISIONS, ... \\
+8  &                      JAKARTA &      4.5890 &  CARGODEPTH, ENTRYSWELL, CHAN\_DEPTH, OVERHD\_L... \\
+9  &                       SANTOS &      4.4293 &  COUNTRY, TIDE\_RANGE, CHAN\_DEPTH, REPAIRCODE,... \\
+10 &                       BANTEN &      4.0696 &  OVERHD\_LIM, ENTRY\_TIDE, DRTYBALLST, DIESEL, ... \\
+11 &                     DAMIETTA &      3.9499 &  PROVISIONS, COUNTRY, COMM\_PHONE, REPAIRCODE, ... \\
+12 &                       ZARATE &      3.6693 &  COUNTRY, HARBORTYPE, DRTYBALLST, CHAN\_DEPTH, ... \\
+13 &                   LONG BEACH &      3.6407 &  COUNTRY, PROVISIONS, PRATIQUE, ANCH\_DEPTH, DR... \\
+14 &                   VOSTOCHNYY &      3.4904 &  COUNTRY, HARBORSIZE, CARGOWHARF, ENTRYSWELL, R... \\
+15 &                      VITORIA &      3.4783 &  COUNTRY, OVERHD\_LIM, CARGODEPTH, ENTRY\_TIDE,... \\
+16 &                 FRASER MILLS &      3.4064 &  CHAN\_DEPTH, COUNTRY, HARBORSIZE, PROVISIONS, ... \\
+17 &                    NEWCASTLE &      3.3640 &  ENTRYSWELL, CHAN\_DEPTH, OVERHD\_LIM, PROVISIO... \\
+18 &                    MYS ABRAM &      3.3464 &  COMM\_AIR, PROVISIONS, CARGOWHARF, ETAMESSAGE,... \\
+19 &                 COWICHAN BAY &      3.3117 &  COUNTRY, PROVISIONS, HARBORSIZE, CHAN\_DEPTH, ... \\
 \bottomrule
 \end{tabular}

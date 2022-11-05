@@ -58,8 +58,10 @@ df_shap = df_shap.rename(columns={df_shap.columns[-1]: "Centrality"})
 # col_names = ["PORT_NAME", df_shap.columns[-1]]
 # [col_names.extend([c for c in df_shap.columns if c not in col_names ])]
 
-df_shap["Top_2_Feat_SHAP"] = df_shap.drop(columns=["PORT_NAME", "Centrality"]).apply(
-    lambda s: ", ".join(s.abs().nlargest(2).index.tolist()).replace("_", "\\_"), axis=1
+df_shap["Top_2_Feat_SHAP"] = df_shap.drop(
+    columns=["PORT_NAME", "Centrality", "LATITUDE", "LONGITUDE"]
+).apply(
+    lambda s: ", ".join(s.abs().nlargest(5).index.tolist()).replace("_", "\\_"), axis=1
 )
 
 # df_shap["min_shap"] = df_shap.drop(columns=["PORT_NAME", "Centrality", "max_shap"]).idxmin(axis=1)

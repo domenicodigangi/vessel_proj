@@ -40,7 +40,13 @@ def get_accuracy(loader, model):
 
 
 def execute_one_run(
-    experiment, model, train_loader, val_loader, lr_values: List[float], graph_type
+    experiment,
+    model,
+    train_loader,
+    val_loader,
+    lr_values: List[float],
+    graph_type,
+    n_epochs: int,
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     criterion = torch.nn.CrossEntropyLoss()
@@ -55,7 +61,7 @@ def execute_one_run(
                 k: v for k, v in optimizer.param_groups[0].items() if k not in "params"
             }
             h_par["optim_str"] = optimizer.__str__()
-            h_par["n_epochs"] = 500
+            h_par["n_epochs"] = n_epochs
             h_par["Model Name"] = model._get_name()
             h_par["hidden_channels"] = model.hidden_channels
             h_par["Model String"] = model.__str__()
