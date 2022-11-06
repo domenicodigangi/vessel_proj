@@ -15,12 +15,22 @@ logger.setLevel(logging.INFO)
 def train(model, train_loader, optimizer, criterion):
     model.train()
 
+    is_heterogeneous = check_if_heterogeneous(model)
+
     for data in train_loader:  # Iterate in batches over the training dataset.
         optimizer.zero_grad()  # Clear gradients.
-        out = model(
-            data.x, data.edge_index, data.batch
-        )  # Perform a single forward pass.
-        loss = criterion(out, data.y)  # Compute the loss.
+        if is_heterogeneous:
+            out_dict = model(
+                data.x_dict, data.edge_index_dict, data.batch_dict
+            )  # Perform a single forward pass.
+            loss = torch.stack(
+                [criterion(out, data.y) for node_type, out in out_dict.items()]
+            ).sum()  # Compute the loss.
+        else:
+            out = model(data.x, data.edge_index, data.batch)
+
+            loss = criterion(out, data.y)  # Compute the loss.
+
         loss.backward()  # Derive gradients.
         optimizer.step()  # Update parameters based on gradients.
         # print(loss.data)
@@ -30,13 +40,32 @@ def train(model, train_loader, optimizer, criterion):
 
 def get_accuracy(loader, model):
     model.eval()
+    is_heterogeneous = check_if_heterogeneous(model)
 
     correct = 0
     for data in loader:  # Iterate in batches over the training/test dataset.
-        out = model(data.x, data.edge_index, data.batch)
-        pred = out.argmax(dim=1)  # Use the class with highest probability.
+        if is_heterogeneous:
+            out_dict = model(
+                data.x_dict, data.edge_index_dict, data.batch_dict
+            )  # Perform a single forward pass.
+            pred = out_dict["traj_point"].argmax(
+                dim=1
+            )  # Use the class with highest probability.
+        else:
+            out = model(data.x, data.edge_index, data.batch)
+
+            pred = out.argmax(dim=1)  # Use the class with highest probability.
+
         correct += int((pred == data.y).sum())  # Check against ground-truth labels.
     return correct / len(loader.dataset)  # Derive ratio of correct predictions.
+
+
+def check_if_heterogeneous(model):
+    if "Hetero" in model.__str__():
+        is_heterogeneous = True
+    else:
+        is_heterogeneous = False
+    return is_heterogeneous
 
 
 def get_x_from_homo_and_hetero_graph(graph):
@@ -56,6 +85,7 @@ def execute_one_run(
     lr_values: List[float],
     graph_type,
     n_epochs: int,
+    h_par_init: dict = {},
 ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     criterion = torch.nn.CrossEntropyLoss()
@@ -64,11 +94,15 @@ def execute_one_run(
 
         with mlflow.start_run(experiment_id=experiment.experiment_id):
             model = model.to(device)
+            torch.manual_seed(12345)
 
             optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=5e-4)
-            h_par = {
-                k: v for k, v in optimizer.param_groups[0].items() if k not in "params"
-            }
+            h_par = h_par_init
+
+            for k, v in optimizer.param_groups[0].items():
+                if k not in "params":
+                    h_par[k] = v
+
             h_par["optim_str"] = optimizer.__str__()
             h_par["n_epochs"] = n_epochs
             h_par["Model Name"] = model._get_name()
