@@ -28,7 +28,7 @@ dotenv.load_dotenv("/home/digan/cnr/vessel_proj/vessel_proj_secrets.env")
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-EXPERIMENT_VERSION = "geolife"
+EXPERIMENT_VERSION = "geolife_v1"
 loadfold = Path("/home/digan/cnr/vessel_proj/data/processed/gnn/geolife_graphs")
 set_mlflow()
 
