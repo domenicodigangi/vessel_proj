@@ -34,8 +34,8 @@ set_mlflow()
 
 graph_type = "spatio_temporal_chain_heterogeneous"
 for graph_type in [
-    "temporal_chain_homogeneous",
     "spatio_temporal_chain_heterogeneous",
+    "temporal_chain_homogeneous",
     "spatio_temporal_percentile_1_homogeneous",
     "spatio_temporal_chain_homogeneous",
 ]:
