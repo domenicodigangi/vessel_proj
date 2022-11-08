@@ -26,10 +26,7 @@ def download_graph_data_zenodo() -> pd.DataFrame:
 def get_graph_data() -> pd.DataFrame:
     graph_data_file = get_data_path() / "interim" / "edge_list_aggregated.parquet"
 
-    try:
-        df = pd.read_parquet(graph_data_file)
-    except FileNotFoundError:
-        df = download_graph_data_zenodo()
+    df = pd.read_parquet(graph_data_file)
 
     return df
 

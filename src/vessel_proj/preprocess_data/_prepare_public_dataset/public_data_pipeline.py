@@ -1,4 +1,3 @@
-# %%
 import pandas as pd
 from pathlib import Path
 import numpy as np
@@ -11,9 +10,6 @@ from vessel_proj.preprocess_data import set_types_edge_list, shaper
 logger = logging.getLogger("root")
 FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
 logging.basicConfig(format=FORMAT)
-
-
-# %%
 
 
 def clean_visits(df, min_dur_sec=300, types_to_drop=["fishing", "tug tow"]):
@@ -85,8 +81,8 @@ def clean_edges(df_edges: pd.DataFrame, min_dur_secs=300) -> pd.DataFrame:
 
 
 def group_edges_per_vessel_category(df_edges: pd.DataFrame) -> pd.DataFrame:
-    # %% group trips
     # count number of connections between each pairs of ports, avg duration, number of distinct vessels and types of vessels
+    logger.info("group trips ")
 
     def count_unique(x):
         return np.unique(x).shape[0]
@@ -120,12 +116,7 @@ def aggregated_graph_from_edge_list(df_edges, min_dur_secs=3600):
     return df_edges_per_vessel_category
 
 
-# %%
-
-
 def main():
-
-    df_edges = pd.read_parquet(get_data_path() / "raw" / "edge_list.parquet")
 
     df_visits = load_visits()
 
@@ -140,4 +131,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-# %%

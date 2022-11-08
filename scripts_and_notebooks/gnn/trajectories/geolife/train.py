@@ -82,7 +82,7 @@ for graph_type in [
 
     h_par = {}
     if "hetero" in graph_type:
-        h_par["aggr_het"] = "sum"
+        h_par["aggr_het"] = "mean"
         graph_metadata = g.metadata()
         rel_name_list = [k[1] for k in graph_metadata[1]]
         model_list = get_gcn_heterogeneous_model_list(
@@ -97,7 +97,7 @@ for graph_type in [
             n_layers_list, hidden_channels_list, num_classes
         )
     lr_values = [0.005]
-    n_epochs = 250
+    n_epochs = 500
     model = model_list[0]
     for model in model_list:
 
