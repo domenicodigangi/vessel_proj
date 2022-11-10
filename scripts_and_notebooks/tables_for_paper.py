@@ -47,7 +47,7 @@ for col in ["avg_centr", "avg_rank_centr"]:
 wandb.init()
 tab_fold = get_project_root() / "reports" / "tables"
 
-run_id = "q3mvc2k9"
+run_id = "hj7tyi2t"
 tab = wandb.use_artifact(
     f"digangidomenico/ports-feature-importance/run-{run_id}-shap_table:v0"
 ).get("shap_table")
@@ -118,19 +118,19 @@ def make_and_save_latex_tab_sage_imp(df, tab_name, col_names):
 df = pd.read_csv(
     get_data_path()
     / "processed"
-    / "sage_top_5_10_15_wandb_export_2022-04-13T17_59_52.595+02_00.csv"
+    / "sage_top_5_10_15_wandb_export_2022-11-10T23_11_45.546+01_00.csv"
 )
 
 make_and_save_latex_tab_sage_imp(df, "tab_top_pct", ["5 pct", "10 pct", "15 pct"])
 
-# %% kmeans groups
-df = pd.read_csv(
-    get_data_path()
-    / "processed"
-    / "sage_kmeans_2_3_4_5_wandb_export_2022-02-17T10_54_56.603+01_00.csv"
-)
+# # %% kmeans groups
+# df = pd.read_csv(
+#     get_data_path()
+#     / "processed"
+#     / "sage_kmeans_2_3_4_5_wandb_export_2022-02-17T10_54_56.603+01_00.csv"
+# )
 
-make_and_save_latex_tab_sage_imp(df, "kmeans", ["2", "3", "4", "5"])
+# make_and_save_latex_tab_sage_imp(df, "kmeans", ["2", "3", "4", "5"])
 
 # %%
 

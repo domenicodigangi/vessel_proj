@@ -3,7 +3,6 @@ from typing import Dict, List, Optional
 import numpy as np
 import pandas as pd
 import networkx as nx
-from prefect import task
 import logging
 from timer import get_timer
 from vessel_proj.ds_utils import get_data_path
@@ -135,14 +134,10 @@ def get_centralities(G: nx.DiGraph) -> pd.DataFrame:
     return df_centr
 
 
-# %%
-
-
 def drop_ports(dfg_edges_per_cat: pd.DataFrame, ls_ports_to_drop: List) -> pd.DataFrame:
     pass
 
 
-@task
 def get_and_save_centralities_from_graph_data(
     save_path, ports_to_exclude: Optional[Dict] = None
 ):

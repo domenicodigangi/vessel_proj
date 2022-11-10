@@ -4,7 +4,6 @@ from matplotlib import pyplot as plt
 from pathlib import Path
 from vessel_proj.ds_utils import get_data_path
 import geopandas as gpd
-from prefect import task
 import requests
 import zipfile
 

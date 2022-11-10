@@ -42,7 +42,7 @@ _PROJECT_NAME = "ports-feature-importance"
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
 
-sns.set_theme(style="darkgrid")
+sns.set_theme(style="whitegrid")
 
 
 logger = logging.getLogger(__file__)
@@ -584,7 +584,7 @@ def main(
                 for imputer_missing in all_imputer_names:
 
                     if disc_strategy.startswith("top_"):
-                        for k in [10]:
+                        for k in [5, 10, 15]:  # 10
                             if disc_strategy == "top_k":
                                 disc_strategy_run = f"top_{k}"
                             elif disc_strategy == "top_bottom_k":
