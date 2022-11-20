@@ -25,8 +25,9 @@ from sklearn.metrics import plot_roc_curve
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import KBinsDiscretizer, StandardScaler
 from vessel_proj.ds_utils import catch_all_and_log
-
+from pathlib import Path
 import wandb
+from vessel_proj.ds_utils import get_reports_path
 
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
 sns.set_theme(style="whitegrid")
@@ -203,8 +204,8 @@ def simple_impute_cols(
     return df_train, df_test
 
 
-def impute_missing(train_test_X_y_in, imputer_missing, feat_names_non_cat):
-    train_test_X_y = {k: copy.deepcopy(v) for k, v in train_test_X_y_in.items()}
+def impute_missing(train_test_X_y, imputer_missing, feat_names_non_cat):
+    train_test_X_y = {k: copy.deepcopy(v) for k, v in train_test_X_y.items()}
     try:
         logwandb({"imputer_missing": imputer_missing})
     except:
@@ -234,8 +235,8 @@ def impute_missing(train_test_X_y_in, imputer_missing, feat_names_non_cat):
     return train_test_X_y
 
 
-def train_score_model(train_test_X_y_in, model_name, cv_n_folds):
-    train_test_X_y = {k: copy.deepcopy(v) for k, v in train_test_X_y_in.items()}
+def train_score_model(train_test_X_y, model_name, cv_n_folds):
+    train_test_X_y = {k: copy.deepcopy(v) for k, v in train_test_X_y.items()}
 
     model = eval(model_name)
     (X_train, y_train) = train_test_X_y["train"]
@@ -319,8 +320,8 @@ def train_score_model(train_test_X_y_in, model_name, cv_n_folds):
         logwandb({f"partial_dependence_{feat_name}": wandb.Image(fig)})
 
 
-def estimate_sage(train_test_X_y_in, model_name, sage_imputer, n_sage_perm):
-    train_test_X_y = {k: copy.deepcopy(v) for k, v in train_test_X_y_in.items()}
+def estimate_sage(train_test_X_y, model_name, sage_imputer, n_sage_perm):
+    train_test_X_y = {k: copy.deepcopy(v) for k, v in train_test_X_y.items()}
 
     model = eval(model_name)
     (X_train, y_train) = train_test_X_y["train"]
@@ -354,9 +355,11 @@ def estimate_sage(train_test_X_y_in, model_name, sage_imputer, n_sage_perm):
     logwandb({"time_sage_feat_imp": time.time() - start_time})
 
 
-def estimate_shap(data_in, yname, train_test_X_y_in, model_name, n_ports_shap=100):
-    data = {k: v for k, v in data_in.items()}
-    train_test_X_y = {k: copy.deepcopy(v) for k, v in train_test_X_y_in.items()}
+def estimate_shap(
+    data, yname, train_test_X_y, model_name, n_ports_shap=100, local_save_images=True
+):
+    data = {k: v for k, v in data.items()}
+    train_test_X_y = {k: copy.deepcopy(v) for k, v in train_test_X_y.items()}
 
     start_time = time.time()
 
@@ -377,6 +380,7 @@ def estimate_shap(data_in, yname, train_test_X_y_in, model_name, n_ports_shap=10
     X_for_shap = X_all.drop(columns=["PORT_NAME", yname])
 
     explainer = shap.Explainer(model.predict, X_for_shap)
+    
     shap_values = explainer(X_for_shap)
     df_shap = pd.DataFrame(
         shap_values.values, columns=shap_values.feature_names, index=X_for_shap.index
@@ -385,16 +389,40 @@ def estimate_shap(data_in, yname, train_test_X_y_in, model_name, n_ports_shap=10
     fig = plt.figure()
     shap.plots.beeswarm(shap_values, max_display=14)
     logwandb({"shap-swarm": wandb.Image(fig)})
+    local_path_latest = get_reports_path() / "latest"
+    local_path_latest.mkdir(exist_ok=True, parents=True)
+    if local_save_images:
+        fig.savefig(local_path_latest / "shap_swarm.png")
 
     fig = plt.figure()
     shap.plots.bar(shap_values, max_display=14)
     logwandb({"shap-mean": wandb.Image(fig)})
+    if local_save_images:
+        fig.savefig(local_path_latest / "shap_mean.png")
 
     fig = plt.figure()
     shap.plots.heatmap(shap_values[:1000], max_display=14)
     logwandb({"shap-heat": wandb.Image(fig)})
+    if local_save_images:
+        fig.savefig(local_path_latest / "shap_heatmap.png")
 
     shap_tab = wandb.Table(dataframe=df_shap)
+    df_shap.to_parquet(local_path_latest / "df_shap.parquet")
+
+    if local_save_images:
+        fold_force_plots = local_path_latest / "force_plots"
+        fold_force_plots.mkdir(exist_ok=True, parents=True)
+        for i, ind in enumerate(X_for_shap.index[:30]):
+            f_plot = shap.force_plot(
+                shap_values.base_values[i],
+                shap_values.values[i],
+                features=X_for_shap.iloc[i],
+                feature_names=X_for_shap.columns,
+                show=False,
+                matplotlib=True,
+            )
+            name = df_shap.iloc[i]["PORT_NAME"]
+            f_plot.savefig(fold_force_plots / f"port_{name}.png")
 
     logwandb({"shap_table": shap_tab})
 

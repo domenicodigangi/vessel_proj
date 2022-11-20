@@ -13,9 +13,6 @@ import logging
 from sklearn.model_selection import train_test_split
 from sklearn.exceptions import ConvergenceWarning
 import warnings
-
-_PROJECT_NAME = "ports-feature-importance"
-warnings.filterwarnings("ignore", category=ConvergenceWarning)
 from vessel_proj.task.utils_classification_task_pipeline_ports_centr import (
     logwandb,
     add_avg_centr,
@@ -31,8 +28,53 @@ from vessel_proj.task.utils_classification_task_pipeline_ports_centr import (
     estimate_shap,
 )
 
+_PROJECT_NAME = "ports-feature-importance"
+warnings.filterwarnings("ignore", category=ConvergenceWarning)
 sns.set_theme(style="whitegrid")
 logger = logging.getLogger(__file__)
+
+local_save_images = True
+# % define variables for development
+if False:
+    vessel_category = "cargo"
+    feat_names_non_cat = ["TIDE_RANGE", "LATITUDE", "LONGITUDE"]
+    cols_to_drop = ["PORT_NAME", "REGION_NO", "PUB"]
+    yname = "avg_rank_centr"
+    model_name = "RandomForestClassifier(random_state=0)"
+    run_sage_and_shap = True
+    n_sage_perm = None
+    cv_n_folds = 5
+    sage_imputer = "DefaultImputer"
+    wandb.init(
+        project=_PROJECT_NAME,
+        dir=get_wandb_root_path(),
+        group="classification_task",
+        reinit=True,
+        name="test_run",
+        tags=["test_run"],
+    )
+    imputer_missing = "IterativeImputer()"  # "SimpleImputer()"
+    test_run_flag = True
+    # disc_strategy = "kmeans_3"
+    disc_strategy = "top_10"
+    log_of_target = False
+    miss_threshold = 0.5
+
+    one_run(
+        model_name,
+        yname,
+        imputer_missing,
+        run_sage_and_shap,
+        n_sage_perm,
+        cv_n_folds,
+        sage_imputer,
+        disc_strategy,
+        miss_threshold,
+        log_of_target,
+        feat_names_non_cat=["TIDE_RANGE", "LATITUDE", "LONGITUDE"],
+        cols_to_drop=["PORT_NAME", "REGION_NO", "PUB"],
+        test_run_flag=False,
+    )
 
 
 def one_run(
@@ -40,7 +82,7 @@ def one_run(
     model_name,
     yname,
     imputer_missing,
-    run_sage,
+    run_sage_and_shap,
     n_sage_perm,
     cv_n_folds,
     sage_imputer,
@@ -71,7 +113,7 @@ def one_run(
             "log_of_target": log_of_target,
             "cv_n_folds": cv_n_folds,
             "sage_imputer": sage_imputer,
-            "run_sage": run_sage,
+            "run_sage_and_shap": run_sage_and_shap,
             "n_sage_perm": n_sage_perm,
             "miss_threshold": miss_threshold,
         }
@@ -81,76 +123,33 @@ def one_run(
 
         data = get_latest_port_data_task.fn(vessel_category)
 
-        data = add_avg_centr.fn(data)
+        data = add_avg_centr(data)
 
-        data = encode_features.fn(data, feat_names_non_cat, cols_to_drop)
+        data = encode_features(data, feat_names_non_cat, cols_to_drop)
 
-        data = drop_missing_cols.fn(data, threshold=miss_threshold)
+        data = drop_missing_cols(data, threshold=miss_threshold)
 
-        prep_X_y = select_and_discretize_target.fn(
+        prep_X_y = select_and_discretize_target(
             data, yname, disc_strategy, log_of_target
         )
 
-        train_test_X_y = split_X_y.fn(prep_X_y)
+        train_test_X_y = split_X_y(prep_X_y)
 
-        train_test_X_y = impute_missing.fn(
+        train_test_X_y = impute_missing(
             train_test_X_y, imputer_missing, feat_names_non_cat
         )
 
-        train_score_model.fn(train_test_X_y, model_name, cv_n_folds)
+        train_score_model(train_test_X_y, model_name, cv_n_folds)
 
-        if run_sage in ["True", "Y", "T", True]:
-            estimate_sage.fn(train_test_X_y, model_name, sage_imputer, n_sage_perm)
+        if run_sage_and_shap in ["True", "Y", "T", True]:
+            estimate_sage(train_test_X_y, model_name, sage_imputer, n_sage_perm)
 
-            estimate_shap.fn(data, yname, train_test_X_y, model_name)
+            estimate_shap(data, yname, train_test_X_y, model_name)
 
         logger.info(f"FINISHED {run_pars}")
 
 
-# % define variables for development
-if False:
-    vessel_category = "cargo"
-    feat_names_non_cat = ["TIDE_RANGE", "LATITUDE", "LONGITUDE"]
-    cols_to_drop = ["PORT_NAME", "REGION_NO", "PUB"]
-    yname = "avg_rank_centr"
-    model_name = "RandomForestClassifier(random_state=0)"
-    run_sage = True
-    n_sage_perm = None
-    cv_n_folds = 5
-    sage_imputer = "DefaultImputer"
-    wandb.init(
-        project=_PROJECT_NAME,
-        dir=get_wandb_root_path(),
-        group="classification_task",
-        reinit=True,
-        name="test_run",
-        tags=["test_run"],
-    )
-    imputer_missing = "IterativeImputer()"  # "SimpleImputer()"
-    test_run_flag = True
-    # disc_strategy = "kmeans_3"
-    disc_strategy = "top_182"
-    log_of_target = False
-    miss_threshold = 0.5
-
-    one_run(
-        model_name,
-        yname,
-        imputer_missing,
-        run_sage,
-        n_sage_perm,
-        cv_n_folds,
-        sage_imputer,
-        disc_strategy,
-        miss_threshold,
-        log_of_target,
-        feat_names_non_cat=["TIDE_RANGE", "LATITUDE", "LONGITUDE"],
-        cols_to_drop=["PORT_NAME", "REGION_NO", "PUB"],
-        test_run_flag=False,
-    )
-
-
-@arg("--run_sage", help="compute and log sage feat importance")
+@arg("--run_sage_and_shap", help="compute and log sage feat importance")
 @arg(
     "--n_sage_perm",
     help="Maximum number of permutations in sage. If null it goes on until convergence",
@@ -162,7 +161,7 @@ if False:
     help="How are we going to define bins? top_k% (any number instead of 100), or kmeans https://scikit-learn.org/stable/modules/preprocessing.html#preprocessing-discretization",
 )
 def main(
-    run_sage=True,
+    run_sage_and_shap=True,
     n_sage_perm=1000000,
     cv_n_folds=5,
     sage_imputer="DefaultImputer",
@@ -198,7 +197,7 @@ def main(
                                 model_name,
                                 yname,
                                 imputer_missing,
-                                run_sage,
+                                run_sage_and_shap,
                                 n_sage_perm,
                                 cv_n_folds,
                                 sage_imputer,
@@ -215,7 +214,7 @@ def main(
                                 model_name,
                                 yname,
                                 imputer_missing,
-                                run_sage,
+                                run_sage_and_shap,
                                 n_sage_perm,
                                 cv_n_folds,
                                 sage_imputer,
