@@ -1,8 +1,6 @@
-# %%
 from typing import Dict, List, Optional
 
 import seaborn as sns
-from prefect import flow, task
 
 sns.set_style("whitegrid")
 import copy
@@ -26,19 +24,12 @@ from sklearn.inspection import permutation_importance
 from sklearn.metrics import plot_roc_curve
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import KBinsDiscretizer, StandardScaler
-from vessel_proj.ds_utils import (
-    catch_all_and_log,
-)
+from vessel_proj.ds_utils import catch_all_and_log
 
 import wandb
 
-_PROJECT_NAME = "ports-feature-importance"
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
-
-
 sns.set_theme(style="whitegrid")
-
-
 logger = logging.getLogger(__file__)
 
 
@@ -47,7 +38,6 @@ def logwandb(*args, **kwargs):
     wandb.log(*args, **kwargs)
 
 
-@task
 def add_avg_centr(data_in):
     data = {k: v for k, v in data_in.items()}
     df_centr = data["centralities"]
@@ -72,7 +62,6 @@ def add_avg_centr(data_in):
     return data
 
 
-@task
 def encode_features(
     data_in: Dict,
     feat_names_non_cat: List[str],
@@ -110,7 +99,6 @@ def encode_df_features(df_X: pd.DataFrame, feat_names_cat: List[str]) -> pd.Data
     return df_X
 
 
-@task
 def drop_missing_cols(
     data_in,
     threshold=0.5,
@@ -127,7 +115,6 @@ def drop_missing_cols(
     return data
 
 
-@task
 def select_and_discretize_target(data_in, yname, disc_strategy, log_of_target):
     data = {k: v for k, v in data_in.items()}
     df_feat = data["features"]
@@ -180,7 +167,6 @@ def select_and_discretize_target(data_in, yname, disc_strategy, log_of_target):
     return X_y
 
 
-@task
 def split_X_y(X_y):
     X, y = X_y
     X_train, X_test, y_train, y_test = train_test_split(
@@ -217,7 +203,6 @@ def simple_impute_cols(
     return df_train, df_test
 
 
-@task
 def impute_missing(train_test_X_y_in, imputer_missing, feat_names_non_cat):
     train_test_X_y = {k: copy.deepcopy(v) for k, v in train_test_X_y_in.items()}
     try:
@@ -249,7 +234,6 @@ def impute_missing(train_test_X_y_in, imputer_missing, feat_names_non_cat):
     return train_test_X_y
 
 
-@task
 def train_score_model(train_test_X_y_in, model_name, cv_n_folds):
     train_test_X_y = {k: copy.deepcopy(v) for k, v in train_test_X_y_in.items()}
 
@@ -335,7 +319,6 @@ def train_score_model(train_test_X_y_in, model_name, cv_n_folds):
         logwandb({f"partial_dependence_{feat_name}": wandb.Image(fig)})
 
 
-@task
 def estimate_sage(train_test_X_y_in, model_name, sage_imputer, n_sage_perm):
     train_test_X_y = {k: copy.deepcopy(v) for k, v in train_test_X_y_in.items()}
 
@@ -371,7 +354,6 @@ def estimate_sage(train_test_X_y_in, model_name, sage_imputer, n_sage_perm):
     logwandb({"time_sage_feat_imp": time.time() - start_time})
 
 
-@task
 def estimate_shap(data_in, yname, train_test_X_y_in, model_name, n_ports_shap=100):
     data = {k: v for k, v in data_in.items()}
     train_test_X_y = {k: copy.deepcopy(v) for k, v in train_test_X_y_in.items()}

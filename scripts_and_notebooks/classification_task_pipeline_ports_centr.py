@@ -1,4 +1,3 @@
-from prefect import task, flow
 import seaborn as sns
 
 sns.set_style("whitegrid")
@@ -36,7 +35,6 @@ sns.set_theme(style="whitegrid")
 logger = logging.getLogger(__file__)
 
 
-@flow
 def one_run(
     vessel_category,
     model_name,
