@@ -11,6 +11,7 @@ from torch_geometric.nn import (
     HeteroConv,
     SAGEConv,
     global_mean_pool,
+    HANConv,
 )
 
 
@@ -209,6 +210,49 @@ class GCNHeterogeneous(torch.nn.Module):
         return x_dict
 
 
+class HANHeterogeneous(torch.nn.Module):
+    def __init__(
+        self,
+        num_layers: int,
+        hidden_channels: int,
+        num_classes: int,
+        rel_name_list: List[str],
+    ):
+
+        super().__init__()
+        self.hidden_channels = hidden_channels
+
+        self.convs = torch.nn.ModuleList()
+        metadata = (
+            ["traj_point"],
+            [("traj_point", rel_name, "traj_point") for rel_name in rel_name_list],
+        )
+        for _ in range(num_layers):
+            conv = HANConv(-1, hidden_channels, metadata)
+            self.convs.append(conv)
+
+        self.lin = Linear(hidden_channels, num_classes)
+
+    def forward(self, x_dict, edge_index_dict, batch):
+        for conv in self.convs[:-1]:
+            x_dict = conv(x_dict, edge_index_dict)
+            x_dict = {key: x.relu() for key, x in x_dict.items()}
+
+        x_dict = self.convs[-1](x_dict, edge_index_dict)
+
+        # 2. Readout layer
+        for k in x_dict.keys():
+            x_dict[k] = global_mean_pool(
+                x_dict[k], batch[k]
+            )  # [batch_size, hidden_channels]
+
+            x_dict[k] = F.dropout(x_dict[k], p=0.5, training=self.training)
+
+            x_dict[k] = self.lin(x_dict[k])
+
+        return x_dict
+
+
 def get_gcn_homogeneous_model_list(
     n_layers_list: List[int],
     hidden_channels_list: List[int],
@@ -249,4 +293,9 @@ def get_gcn_heterogeneous_model_list(
         for n_layers, hidden_channels in product(n_layers_list, hidden_channels_list)
     ]
 
-    return gcn_model_list
+    han_model_list = [
+        HANHeterogeneous(n_layers, hidden_channels, num_classes, rel_name_list)
+        for n_layers, hidden_channels in product(n_layers_list, hidden_channels_list)
+    ]
+
+    return han_model_list + gcn_model_list

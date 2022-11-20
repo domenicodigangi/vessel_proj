@@ -61,12 +61,12 @@ for filepath in loadfoldpath.iterdir():
         "altitude",
     ]
 
-    graph = get_homogeneous_spatio_temp_closest_percentile_graph(
-        df_traj,
-        cat_col="transportation_mode",
-        additional_columns=additional_columns,
-        percentile=percentile,
-    )
+    # graph = get_homogeneous_spatio_temp_closest_percentile_graph(
+    #     df_traj,
+    #     cat_col="transportation_mode",
+    #     additional_columns=additional_columns,
+    #     percentile=percentile,
+    # )
 
     graph_list.append(graph)
 

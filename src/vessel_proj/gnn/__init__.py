@@ -6,7 +6,7 @@ from vessel_proj.preprocess_data.get_and_save_centralities_from_graph_data impor
 )
 import numpy as np
 from sklearn.model_selection import train_test_split
-from vessel_proj.task.classification_task_pipeline_ports_centr import (
+from vessel_proj.task.utils_classification_task_pipeline_ports_centr import (
     encode_df_features,
     encode_features,
     simple_impute_cols,

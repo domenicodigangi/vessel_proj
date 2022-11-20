@@ -35,9 +35,9 @@ set_mlflow()
 graph_type = "spatio_temporal_chain_heterogeneous"
 for graph_type in [
     "spatio_temporal_chain_heterogeneous",
-    "temporal_chain_homogeneous",
-    "spatio_temporal_percentile_1_homogeneous",
-    "spatio_temporal_chain_homogeneous",
+    # "temporal_chain_homogeneous",
+    # "spatio_temporal_percentile_1_homogeneous",
+    # "spatio_temporal_chain_homogeneous",
 ]:
 
     loadfile = loadfold / f"graph_list_{graph_type}.pt"
@@ -78,7 +78,7 @@ for graph_type in [
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     n_layers_list = [2, 3, 4, 5]
-    hidden_channels_list = [32, 64]
+    hidden_channels_list = [64, 96, 128]
 
     h_par = {}
     if "hetero" in graph_type:
@@ -101,16 +101,18 @@ for graph_type in [
     model = model_list[0]
     for model in model_list:
 
-        execute_one_run(
-            experiment,
-            model,
-            train_loader,
-            val_loader,
-            lr_values,
-            graph_type,
-            n_epochs,
-            h_par_init=h_par,
-        )
+        if "HANHeterogeneous" in model._get_name():
+
+            execute_one_run(
+                experiment,
+                model,
+                train_loader,
+                val_loader,
+                lr_values,
+                graph_type,
+                n_epochs,
+                h_par_init=h_par,
+            )
 
 
 # %%

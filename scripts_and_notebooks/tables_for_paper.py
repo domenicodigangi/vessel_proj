@@ -4,7 +4,9 @@ import pandas as pd
 from matplotlib import markers, pyplot as plt
 from vessel_proj.ds_utils import get_project_name, get_data_path, get_project_root
 from vessel_proj.preprocess_data import get_latest_port_data_task
-from vessel_proj.task.classification_task_pipeline_ports_centr import add_avg_centr
+from vessel_proj.task.utils_classification_task_pipeline_ports_centr import (
+    add_avg_centr,
+)
 import seaborn as sns
 
 sns.set_theme(style="darkgrid")
@@ -47,7 +49,7 @@ for col in ["avg_centr", "avg_rank_centr"]:
 wandb.init()
 tab_fold = get_project_root() / "reports" / "tables"
 
-run_id = "hj7tyi2t"
+run_id = "1t4quzzv"
 tab = wandb.use_artifact(
     f"digangidomenico/ports-feature-importance/run-{run_id}-shap_table:v0"
 ).get("shap_table")
@@ -63,6 +65,8 @@ df_shap["Top_2_Feat_SHAP"] = df_shap.drop(
 ).apply(
     lambda s: ", ".join(s.abs().nlargest(5).index.tolist()).replace("_", "\\_"), axis=1
 )
+df_shap.to_parquet(get_data_path() / "processed" / "shap_tab.parquet")
+# pd.read_parquet(get_data_path() / "processed" / "shap_tab.parquet")
 
 # df_shap["min_shap"] = df_shap.drop(columns=["PORT_NAME", "Centrality", "max_shap"]).idxmin(axis=1)
 

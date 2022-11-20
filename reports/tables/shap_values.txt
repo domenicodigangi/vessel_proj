@@ -2,25 +2,25 @@
 \toprule
 {} &                   PORT\_NAME &  Centrality &                                 Top\_2\_Feat\_SHAP \\
 \midrule
-0  &    KEPPEL - (EAST SINGAPORE) &     10.3888 &  HOLDGROUND, CARGODEPTH, HARBORSIZE, DRTYBALLST... \\
-1  &                 EUROPA POINT &      8.4000 &  REPAIRCODE, COUNTRY, HARBORTYPE, ENTRYSWELL, H... \\
-2  &             PUERTO CRISTOBAL &      7.0481 &  CARGODEPTH, REPAIRCODE, COMM\_PHONE, HARBORSIZ... \\
-3  &                        CEUTA &      6.6253 &  COUNTRY, OVERHD\_LIM, REPAIRCODE, CHAN\_DEPTH,... \\
-4  &                    VACAMONTE &      6.5882 &  OVERHD\_LIM, ETAMESSAGE, CHAN\_DEPTH, COMM\_AI... \\
-5  &                   LAS PALMAS &      5.7879 &  CARGODEPTH, HARBORSIZE, DIESEL, ENTRYSWELL, US... \\
-6  &  AL ISKANDARIYH (ALEXANDRIA) &      4.8338 &  HARBORSIZE, COMM\_PHONE, DRTYBALLST, HARBORTYP... \\
-7  &                  KATSUNAN KO &      4.8049 &  DRTYBALLST, COMM\_AIR, OVERHD\_LIM, COUNTRY, E... \\
-8  &                   EL-ADABIYA &      4.7477 &  ENTRYSWELL, ENTRY\_TIDE, OVERHD\_LIM, HOLDGROU... \\
-9  &                       DURBAN &      4.4634 &  COUNTRY, US\_REP, ENTRYSWELL, CARGODEPTH, REPA... \\
-10 &                       GRESIK &      4.4392 &  US\_REP, PROVISIONS, CARGODEPTH, PRATIQUE, HOL... \\
-11 &                      JAKARTA &      4.3174 &  US\_REP, PRATIQUE, COUNTRY, ENTRY\_TIDE, ANCH\... \\
-12 &                   CASABLANCA &      4.1984 &  HARBORSIZE, TIDE\_RANGE, DRTYBALLST, COUNTRY, ... \\
-13 &                       SANTOS &      4.0937 &  HARBORSIZE, ENTRY\_TIDE, US\_REP, COUNTRY, ENT... \\
-14 &                       BANTEN &      3.8006 &  COMM\_AIR, COUNTRY, US\_REP, PRATIQUE, ENTRY\_... \\
-15 &                     DAMIETTA &      3.6355 &  US\_REP, DIESEL, ENTRYSWELL, PRATIQUE, HARBORSIZE \\
-16 &                 TONGUE POINT &      3.3972 &  COUNTRY, DRTYBALLST, CHAN\_DEPTH, US\_REP, HAR... \\
-17 &                       ZARATE &      3.3922 &  CHAN\_DEPTH, CARGODEPTH, COUNTRY, DRTYBALLST, ... \\
-18 &                   LONG BEACH &      3.3576 &  COUNTRY, DRTYBALLST, ENTRY\_TIDE, HARBORSIZE, ... \\
-19 &                      VITORIA &      3.2347 &  ENTRYSWELL, PRATIQUE, CHAN\_DEPTH, COUNTRY, OV... \\
+0  &    KEPPEL - (EAST SINGAPORE) &     10.3888 &  CARGODEPTH, REPAIRCODE, HOLDGROUND, COUNTRY, E... \\
+1  &                 EUROPA POINT &      8.4000 &  REPAIRCODE, HARBORSIZE, HARBORTYPE, COUNTRY, A... \\
+2  &             PUERTO CRISTOBAL &      7.0481 &  CARGODEPTH, HARBORSIZE, REPAIRCODE, OVERHD\_LI... \\
+3  &                        CEUTA &      6.6253 &  HARBORSIZE, COUNTRY, DRTYBALLST, ANCH\_DEPTH, ... \\
+4  &                    VACAMONTE &      6.5882 &  CHAN\_DEPTH, ENTRY\_TIDE, ENTRYSWELL, OVERHD\_... \\
+5  &                   LAS PALMAS &      5.7879 &  CHAN\_DEPTH, OVERHD\_LIM, DIESEL, TUG\_ASSIST,... \\
+6  &  AL ISKANDARIYH (ALEXANDRIA) &      4.8338 &  COMM\_PHONE, ANCH\_DEPTH, REPAIRCODE, CARGODEP... \\
+7  &                  KATSUNAN KO &      4.8049 &  CARGODEPTH, DIESEL, COUNTRY, HARBORTYPE, CHAN\... \\
+8  &                   EL-ADABIYA &      4.7477 &  COUNTRY, COMM\_AIR, US\_REP, HARBORSIZE, ENTRY... \\
+9  &                       DURBAN &      4.4634 &  COUNTRY, HARBORSIZE, ENTRYSWELL, CARGODEPTH, D... \\
+10 &                       GRESIK &      4.4392 &  ENTRY\_TIDE, DRTYBALLST, COUNTRY, PROVISIONS, ... \\
+11 &                      JAKARTA &      4.3174 &  US\_REP, COUNTRY, PRATIQUE, COMM\_PHONE, CHAN\... \\
+12 &                   CASABLANCA &      4.1984 &  ANCH\_DEPTH, HARBORSIZE, TIDE\_RANGE, COUNTRY,... \\
+13 &                       SANTOS &      4.0937 &  US\_REP, COUNTRY, CHAN\_DEPTH, HARBORSIZE, CAR... \\
+14 &                       BANTEN &      3.8006 &  COMM\_AIR, COUNTRY, ENTRY\_ICE, OVERHD\_LIM, C... \\
+15 &                     DAMIETTA &      3.6355 &  COUNTRY, ENTRY\_TIDE, CARGODEPTH, DRTYBALLST, ... \\
+16 &                 TONGUE POINT &      3.3972 &  COUNTRY, US\_REP, LONGSHORE, PORTOFENTR, DRTYB... \\
+17 &                       ZARATE &      3.3922 &  PRATIQUE, DRTYBALLST, COUNTRY, HARBORSIZE, US\... \\
+18 &                   LONG BEACH &      3.3576 &  COUNTRY, HARBORSIZE, US\_REP, HOLDGROUND, ENTR... \\
+19 &                      VITORIA &      3.2347 &  COUNTRY, HARBORSIZE, ENTRYSWELL, CHAN\_DEPTH, ... \\
 \bottomrule
 \end{tabular}
