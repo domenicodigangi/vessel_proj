@@ -1,12 +1,14 @@
+import copy
+import io
+import logging
 import tempfile
+from pathlib import Path
 from typing import List
 
 import mlflow
 import torch
 from torch.utils.tensorboard import SummaryWriter
 from vessel_proj.ds_utils.torch.opt import grad_norm_from_list
-from pathlib import Path
-import logging
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -122,8 +124,12 @@ def execute_one_run(
                 checkpoints_fold.mkdir(exist_ok=True)
                 writer = SummaryWriter(str(tb_fold))
 
+                es = EarlyStopping()
                 # log all files and sub-folders in temp fold as artifacts
-                for epoch in range(h_par["n_epochs"]):
+                epoch = 0
+                done = False
+                while epoch < h_par["n_epochs"] and not done:
+                    epoch += 1
 
                     loss = train(model, train_loader, optimizer, criterion)
 
@@ -159,6 +165,8 @@ def execute_one_run(
 
                         mlflow.log_artifact(filepath_checkpoint)
 
+                    if es(model, valid_accuracy):
+                        done = True
                 mlflow.log_metrics(
                     {"Loss/value": loss.item(), "Valid Accuracy": valid_accuracy}
                 )
@@ -166,3 +174,32 @@ def execute_one_run(
                 mlflow.log_artifacts(tmp_path)
 
     mlflow.end_run()
+
+
+class EarlyStopping:
+    def __init__(self, patience=5, min_delta=0, restore_best_weights=True):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.restore_best_weights = restore_best_weights
+        self.best_model = None
+        self.best_loss = None
+        self.counter = 0
+        self.status = ""
+
+    def __call__(self, model, val_loss):
+        if self.best_loss == None:
+            self.best_loss = val_loss
+            self.best_model = copy.deepcopy(model)
+        elif self.best_loss - val_loss > self.min_delta:
+            self.best_loss = val_loss
+            self.counter = 0
+            self.best_model.load_state_dict(model.state_dict())
+        elif self.best_loss - val_loss < self.min_delta:
+            self.counter += 1
+            if self.counter >= self.patience:
+                self.status = f"Stopped on {self.counter}"
+                if self.restore_best_weights:
+                    model.load_state_dict(self.best_model.state_dict())
+                return True
+        self.status = f"{self.counter}/{self.patience}"
+        return False

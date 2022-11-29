@@ -96,3 +96,5 @@ data/external/
 *wandb/
 
 *secrets.env
+
+/reports/latest/force_plots/
