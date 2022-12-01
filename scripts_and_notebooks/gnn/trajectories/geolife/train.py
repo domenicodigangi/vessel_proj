@@ -28,7 +28,7 @@ dotenv.load_dotenv("/home/digan/cnr/vessel_proj/vessel_proj_secrets.env")
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-EXPERIMENT_VERSION = "geolife_v1"
+EXPERIMENT_VERSION = "geolife_early_stopping"
 loadfold = Path("/home/digan/cnr/vessel_proj/data/processed/gnn/geolife_graphs")
 set_mlflow()
 
@@ -96,8 +96,8 @@ for graph_type in [
         model_list = get_gcn_homogeneous_model_list(
             n_layers_list, hidden_channels_list, num_classes
         )
-    lr_values = [0.005]
-    n_epochs = 500
+    lr_values = [0.01, 0.005, 0.001]
+    n_epochs = 1500
     model = model_list[0]
     for model in model_list:
 
