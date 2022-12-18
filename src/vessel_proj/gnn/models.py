@@ -298,4 +298,4 @@ def get_gcn_heterogeneous_model_list(
         for n_layers, hidden_channels in product(n_layers_list, hidden_channels_list)
     ]
 
-    return han_model_list + gcn_model_list
+    return han_model_list  # + gcn_model_list

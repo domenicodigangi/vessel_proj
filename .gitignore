@@ -98,3 +98,5 @@ data/external/
 *secrets.env
 
 /reports/latest/force_plots/
+
+*ds_proj_settings.env

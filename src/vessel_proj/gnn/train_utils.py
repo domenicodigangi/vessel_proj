@@ -114,6 +114,7 @@ def execute_one_run(
             h_par["early_stopping_patience"] = 50
             h_par["early_stopping_min_delta"] = 0
 
+            print(h_par)
             mlflow.log_params(h_par)
 
             with tempfile.TemporaryDirectory() as tmpdirname:
