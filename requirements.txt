@@ -1,9 +1,0 @@
-numpy
-pandas
-python-dotenv
-scikit-learn
-scipy
-mlflow
-torch == 1.12.1
-torch-scatter -f https://data.pyg.org/whl/torch-1.12.1+cu102.html
-torch-sparse -f https://data.pyg.org/whl/torch-1.12.1+cu102.html
